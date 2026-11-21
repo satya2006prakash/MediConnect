@@ -121,6 +121,79 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
       }
     }
 
+    // ── 1.5. Patient Registration (Bypasses email confirmation limits) ──
+    if (url === '/api/register-patient' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req)
+        const { fullName, email, password, phone } = body
+
+        const normalizedEmail = (email || '').trim().toLowerCase()
+        if (!normalizedEmail || !password || !fullName) {
+          return sendJson(res, 400, { error: 'Name, email, and password are required' })
+        }
+
+        const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL
+        const secretKey = env.SUPABASE_SECRET_KEY
+        if (!supabaseUrl || !secretKey) {
+          return sendJson(res, 500, { error: 'Supabase configuration missing' })
+        }
+
+        const admin = createClient(supabaseUrl, secretKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        })
+
+        const { data: usersData } = await admin.auth.admin.listUsers()
+        const existingUser = usersData?.users?.find(
+          (u) => u.email?.toLowerCase() === normalizedEmail
+        )
+
+        if (existingUser) {
+          const { data: prof } = await admin
+            .from('profiles')
+            .select('*')
+            .eq('id', existingUser.id)
+            .maybeSingle()
+
+          return sendJson(res, 400, {
+            error: 'already_registered',
+            message: 'This email is already registered on MediConnect.',
+            role: prof?.role || existingUser.user_metadata?.role || 'patient',
+          })
+        }
+
+        const { data: newUser, error: createErr } = await admin.auth.admin.createUser({
+          email: normalizedEmail,
+          password,
+          email_confirm: true,
+          user_metadata: {
+            role: 'patient',
+            full_name: fullName,
+            phone: phone || null,
+          },
+        })
+
+        if (createErr) {
+          return sendJson(res, 400, { error: createErr.message })
+        }
+
+        await admin.from('profiles').upsert({
+          id: newUser.user.id,
+          role: 'patient',
+          full_name: fullName,
+          phone: phone || null,
+        })
+
+        return sendJson(res, 200, {
+          success: true,
+          userId: newUser.user.id,
+          email: normalizedEmail,
+        })
+      } catch (err: any) {
+        console.error('Error in /api/register-patient:', err)
+        return sendJson(res, 500, { error: err.message || 'Internal server error' })
+      }
+    }
+
     // ── 2. Password Reset via Resend (Bypasses Supabase 3-4 mail/hour limit) ──
     if (url === '/api/reset-password' && req.method === 'POST') {
       try {
@@ -136,7 +209,11 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           auth: { autoRefreshToken: false, persistSession: false },
         })
 
-        const origin = req.headers.origin || 'http://localhost:5173'
+        const origin =
+          (req.headers.origin && !req.headers.origin.includes('localhost') ? req.headers.origin : null) ||
+          (req.headers.referer && !req.headers.referer.includes('localhost') ? new URL(req.headers.referer).origin : null) ||
+          (req.headers.host && !req.headers.host.includes('localhost') ? `https://${req.headers.host}` : null) ||
+          'https://mediconnect-sp.vercel.app'
         const redirectTo = `${origin}/reset-password`
 
         const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
@@ -150,9 +227,15 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           return sendJson(res, 400, { error: linkErr.message })
         }
 
-        const recoveryLink = linkData?.properties?.action_link
+        let recoveryLink = linkData?.properties?.action_link
         if (!recoveryLink) {
           return sendJson(res, 500, { error: 'Could not generate recovery link' })
+        }
+
+        // Replace any Supabase localhost defaults with the deployed app URL
+        if (recoveryLink.includes('localhost:5173') && origin.includes('mediconnect-sp.vercel.app')) {
+          recoveryLink = recoveryLink.replaceAll('http://localhost:5173', 'https://mediconnect-sp.vercel.app')
+          recoveryLink = recoveryLink.replaceAll('localhost%3A5173', 'mediconnect-sp.vercel.app')
         }
 
         // Dispatch via Resend

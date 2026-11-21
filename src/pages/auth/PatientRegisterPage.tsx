@@ -59,7 +59,53 @@ export function PatientRegisterPage() {
       return
     }
 
-    // 2. Attempt Supabase Auth Sign Up
+    // 2. Primary: Submit through server API handler (bypasses Supabase email confirmation rate limits)
+    try {
+      const res = await fetch('/api/register-patient', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json()
+
+      if (res.ok && result.success) {
+        // Automatically sign in the user (email was auto-confirmed on server)
+        const { data: loginData } = await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password,
+        })
+
+        if (loginData?.session && loginData?.user) {
+          setUser(loginData.user)
+          setSession(loginData.session)
+          await fetchProfile(loginData.user.id)
+          toast.success('Account created! Welcome to MediConnect.')
+          navigate('/app/dashboard', { replace: true })
+        } else {
+          toast.success('Account created! Please sign in.')
+          navigate('/login', { replace: true })
+        }
+        return
+      }
+
+      if (result.error === 'already_registered') {
+        setDuplicateModal({
+          isOpen: true,
+          email: data.email,
+          existingRole: result.role || check.role || null,
+        })
+        return
+      }
+
+      if (!res.ok && result.error) {
+        toast.error(result.error)
+        return
+      }
+    } catch (apiErr: any) {
+      console.warn('API endpoint fallback to client auth:', apiErr.message)
+    }
+
+    // 3. Fallback: Direct Client-Side Supabase Sign Up
     const { data: authData, error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
