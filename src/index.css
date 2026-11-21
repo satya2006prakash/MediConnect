@@ -1,0 +1,294 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* ── 1. Precise MediConnect Healthcare Colour Palette ── */
+  --color-primary: #2457A7;
+  --color-primary-hover: #1D4685;
+  --color-primary-active: #173666;
+  --color-primary-light: #EEF4FC;
+  --color-primary-subtle: #E1ECFA;
+  --color-primary-border: #CBDDF4;
+
+  --color-secondary: #159A91;
+  --color-secondary-hover: #11827A;
+  --color-secondary-active: #0D6660;
+  --color-secondary-light: #EBF8F7;
+  --color-secondary-border: #C8ECE9;
+
+  --color-background: #F7F9FC;
+  --color-surface: #FFFFFF;
+  --color-surface-hover: #F8FAFC;
+  --color-surface-active: #F1F4F9;
+
+  --color-text-primary: #182230;
+  --color-text-secondary: #667085;
+  --color-text-tertiary: #98A2B3;
+  --color-text-disabled: #D0D5DD;
+
+  --color-border: #E5EAF0;
+  --color-border-subtle: #EEF2F6;
+  --color-border-strong: #D0D7E2;
+
+  --color-success: #16865B;
+  --color-success-hover: #126E4A;
+  --color-success-light: #E8F5EF;
+  --color-success-border: #C6E6D8;
+
+  --color-warning: #D99122;
+  --color-warning-hover: #B87818;
+  --color-warning-light: #FBF4E8;
+  --color-warning-border: #F3DCBA;
+
+  --color-danger: #D64545;
+  --color-danger-hover: #B53636;
+  --color-danger-light: #FBEFEF;
+  --color-danger-border: #F6CACA;
+
+  /* Legacy numeric tints alias mapped to strict palette */
+  --color-primary-50: #EEF4FC;
+  --color-primary-100: #E1ECFA;
+  --color-primary-200: #CBDDF4;
+  --color-primary-500: #2457A7;
+  --color-primary-600: #2457A7;
+  --color-primary-700: #1D4685;
+  --color-primary-800: #173666;
+  --color-primary-900: #102647;
+
+  --color-success-600: #16865B;
+  --color-warning-600: #D99122;
+  --color-danger-600: #D64545;
+  --color-neutral-500: #667085;
+
+  /* ── 2. Typography ── */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+  /* ── 3. Border Radii ── */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
+
+  /* ── 4. Subtle Healthcare Shadows ── */
+  --shadow-subtle: 0 1px 2px 0 rgba(24, 34, 48, 0.04);
+  --shadow-card: 0 1px 3px 0 rgba(24, 34, 48, 0.06), 0 1px 2px -1px rgba(24, 34, 48, 0.04);
+  --shadow-dropdown: 0 4px 6px -1px rgba(24, 34, 48, 0.08), 0 2px 4px -2px rgba(24, 34, 48, 0.04);
+  --shadow-modal: 0 10px 15px -3px rgba(24, 34, 48, 0.1), 0 4px 6px -4px rgba(24, 34, 48, 0.05);
+}
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    line-height: 1.5;
+    font-size: 0.875rem; /* 14px default */
+  }
+
+  /* Strict, restrained typography hierarchy */
+  h1 {
+    font-size: 1.5rem; /* 24px */
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    color: var(--color-text-primary);
+  }
+
+  h2 {
+    font-size: 1.125rem; /* 18px */
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.35;
+    color: var(--color-text-primary);
+  }
+
+  h3 {
+    font-size: 0.9375rem; /* 15px */
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--color-text-primary);
+  }
+
+  h4, h5, h6 {
+    font-size: 0.875rem; /* 14px */
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--color-text-primary);
+  }
+
+  p {
+    color: var(--color-text-primary);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  input, textarea, select, button {
+    font-family: inherit;
+    font-size: inherit;
+  }
+
+  /* Custom scrollbar for clean enterprise feel */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #D0D7E2;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #98A2B3;
+  }
+}
+
+/* ── 5. System-Wide Dark Mode Rules ── */
+.dark {
+  color-scheme: dark;
+  --color-background: #0D1117;
+  --color-surface: #161B22;
+  --color-surface-hover: #1F242C;
+  --color-surface-active: #282E39;
+
+  --color-text-primary: #F0F6FC;
+  --color-text-secondary: #8B949E;
+  --color-text-tertiary: #6E7681;
+  --color-text-disabled: #484F58;
+
+  --color-border: #30363D;
+  --color-border-subtle: #21262D;
+  --color-border-strong: #3D444D;
+
+  --color-primary-light: #16243B;
+  --color-primary-subtle: #131E31;
+  --color-primary-border: #1F3659;
+
+  --color-secondary-light: #102624;
+  --color-secondary-border: #173E3B;
+
+  --color-success-light: #0E291C;
+  --color-success-border: #15452F;
+
+  --color-warning-light: #2A1D0B;
+  --color-warning-border: #4A3314;
+
+  --color-danger-light: #2B1313;
+  --color-danger-border: #4A1E1E;
+}
+
+.dark body {
+  background-color: #0D1117;
+  color: #F0F6FC;
+}
+
+.dark .bg-white,
+.dark .bg-surface {
+  background-color: #161B22 !important;
+}
+
+.dark .bg-white\/95 {
+  background-color: rgba(22, 27, 34, 0.95) !important;
+}
+
+.dark .bg-background,
+.dark .bg-\[\#F7F9FC\] {
+  background-color: #0D1117 !important;
+}
+
+.dark .bg-slate-50,
+.dark .bg-slate-50\/50,
+.dark .bg-gray-50,
+.dark .bg-\[\#F0F3F7\],
+.dark .bg-\[\#F7F9FC\] {
+  background-color: #1F242C !important;
+}
+
+.dark .bg-slate-100 {
+  background-color: #21262D !important;
+}
+
+.dark .border-border,
+.dark .border-slate-200,
+.dark .border-slate-100,
+.dark .border-\[\#E5EAF0\] {
+  border-color: #30363D !important;
+}
+
+.dark .border-\[\#F0F3F7\] {
+  border-color: #21262D !important;
+}
+
+.dark .text-slate-900,
+.dark .text-\[\#182230\] {
+  color: #F0F6FC !important;
+}
+
+.dark .text-slate-800,
+.dark .text-slate-700 {
+  color: #C9D1D9 !important;
+}
+
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-\[\#667085\] {
+  color: #8B949E !important;
+}
+
+.dark .text-slate-400 {
+  color: #6E7681 !important;
+}
+
+.dark .hover\:bg-\[\#F7F9FC\]:hover,
+.dark .hover\:bg-\[\#F0F3F7\]:hover,
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-gray-50:hover {
+  background-color: #21262D !important;
+}
+
+.dark .hover\:text-\[\#182230\]:hover,
+.dark .hover\:text-slate-900:hover {
+  color: #F0F6FC !important;
+}
+
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark textarea,
+.dark select {
+  background-color: #0D1117 !important;
+  color: #F0F6FC !important;
+  border-color: #30363D !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6E7681 !important;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #30363D;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #484F58;
+}
+
