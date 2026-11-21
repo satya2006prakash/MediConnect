@@ -36,21 +36,43 @@ export function ResetPasswordPage() {
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   useEffect(() => {
-    // Verify that Supabase recovery session exists from the reset link
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setHasValidSession(!!session)
-      setSessionChecked(true)
-    })
+    // We MUST wait for onAuthStateChange — Supabase parses the #access_token hash
+    // asynchronously, so getSession() called immediately often returns null even
+    // when the link is valid. Subscribe first, then also check existing session.
+    let timer: ReturnType<typeof setTimeout>
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+        clearTimeout(timer)
         setHasValidSession(true)
+        setSessionChecked(true)
       }
     })
 
-    return () => subscription.unsubscribe()
+    // Also check if there's already an active session (direct navigation)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        clearTimeout(timer)
+        setHasValidSession(true)
+        setSessionChecked(true)
+      }
+    })
+
+    // Give Supabase up to 3 seconds to process the URL hash before
+    // concluding the link is invalid / expired
+    timer = setTimeout(() => {
+      setSessionChecked((prev) => {
+        if (!prev) return true  // show "expired" UI only if still unchecked
+        return prev
+      })
+    }, 3000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timer)
+    }
   }, [])
 
   const onSubmit = async (data: FormData) => {
@@ -96,6 +118,11 @@ export function ResetPasswordPage() {
                 </Link>
               </div>
             </div>
+          ) : !sessionChecked ? (
+            <div className="text-center py-8 space-y-3">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs text-[#667085] dark:text-[#8B949E]">Verifying reset link…</p>
+            </div>
           ) : sessionChecked && !hasValidSession ? (
             <div className="text-center py-4 space-y-3">
               <div className="w-12 h-12 bg-[#FBEFEF] dark:bg-[#2B1313] text-[#D64545] rounded-full flex items-center justify-center mx-auto">
@@ -114,6 +141,7 @@ export function ResetPasswordPage() {
               </div>
             </div>
           ) : (
+
             <>
               <div className="mb-6">
                 <h1 className="text-xl font-semibold text-[#182230] dark:text-[#F0F6FC]">Set New Password</h1>
