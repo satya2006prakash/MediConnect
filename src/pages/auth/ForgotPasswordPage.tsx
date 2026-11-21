@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Mail } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
-import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/FormField'
 import toast from 'react-hot-toast'
@@ -17,7 +16,6 @@ export function ForgotPasswordPage() {
     setLoading(true)
 
     try {
-      // 1. Send via Resend-powered backend to bypass Supabase mailer rate limits
       const res = await fetch('/api/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -30,26 +28,10 @@ export function ForgotPasswordPage() {
         return
       }
 
-      // 2. Fallback to Supabase direct client reset
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
-
-      if (error) {
-        toast.error(data.error || error.message)
-      } else {
-        setSent(true)
-      }
+      // API returned a genuine error (e.g., user not found, server misconfigured)
+      toast.error(data.error || 'Failed to send reset email. Please try again.')
     } catch {
-      // Fallback
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
-      if (error) {
-        toast.error(error.message)
-      } else {
-        setSent(true)
-      }
+      toast.error('Network error. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
