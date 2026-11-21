@@ -398,7 +398,7 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           if (insErr) return sendJson(res, 500, { error: insErr.message })
         }
 
-        // Send registration receipt via Resend (fire and forget)
+        // Send registration receipt to pharmacy via Resend (fire and forget)
         sendResendEmail(env, {
           to: normalizedEmail,
           subject: 'MediConnect – Pharmacy Registration Received (Under Review)',
@@ -415,6 +415,40 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
             </div>
           `,
         }).catch((err) => console.warn('Could not dispatch pharmacy registration email:', err.message))
+
+        // Send approval request notification to Admin via Resend
+        const origin = req.headers.origin || 'http://localhost:5173'
+        sendResendEmail(env, {
+          to: 'satya2006prakash@gmail.com',
+          subject: `MediConnect Action Required – New Pharmacy Verification: ${pharmacyName}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <h2 style="color: #2457A7; margin: 0; font-size: 24px;">MediConnect Administration</h2>
+                <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">New Pharmacy Accreditation Request</p>
+              </div>
+              <div style="border-top: 1px solid #e5eaf0; padding-top: 20px;">
+                <h3 style="color: #182230; font-size: 18px; margin-top: 0;">Pending Approval: ${pharmacyName}</h3>
+                <p style="color: #475467; font-size: 15px; line-height: 1.6;">
+                  A new pharmacy has submitted their registration and is awaiting administrative verification in the Pharmacy Registry:
+                </p>
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                  <p style="margin: 4px 0; font-size: 14px; color: #334155;"><strong>Pharmacy Name:</strong> ${pharmacyName}</p>
+                  <p style="margin: 4px 0; font-size: 14px; color: #334155;"><strong>Owner:</strong> ${ownerName}</p>
+                  <p style="margin: 4px 0; font-size: 14px; color: #334155;"><strong>Drug License:</strong> ${licenseNumber}</p>
+                  <p style="margin: 4px 0; font-size: 14px; color: #334155;"><strong>Email:</strong> ${normalizedEmail}</p>
+                  <p style="margin: 4px 0; font-size: 14px; color: #334155;"><strong>Phone:</strong> ${phone || '—'}</p>
+                  <p style="margin: 4px 0; font-size: 14px; color: #334155;"><strong>Location:</strong> ${city || ''}, ${pincode || ''}</p>
+                </div>
+                <div style="text-align: center; margin: 28px 0;">
+                  <a href="${origin}/admin/pharmacies" style="background-color: #2457A7; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
+                    Review in Pharmacy Registry
+                  </a>
+                </div>
+              </div>
+            </div>
+          `,
+        }).catch((err) => console.warn('Could not dispatch admin approval notification email:', err.message))
 
         return sendJson(res, 200, {
           success: true,

@@ -98,8 +98,8 @@ export function PharmacyRegisterPage() {
         return
       }
 
-      // If server returned a business error, show it unless fallback needed
-      if (res.status === 400) {
+      // If server returned an error, show it cleanly
+      if (!res.ok) {
         toast.error(result.error || 'Registration failed')
         return
       }

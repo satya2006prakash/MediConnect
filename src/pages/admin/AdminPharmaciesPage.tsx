@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Building2, CheckCircle, XCircle, Search } from 'lucide-react'
-import { useState } from 'react'
+import { Building2, CheckCircle, XCircle, Search, RefreshCw } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -11,28 +11,61 @@ import { formatDate } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import type { Pharmacy } from '@/types/database'
 
-type PharmacyWithOwner = Pharmacy & { owner: { full_name: string; phone: string } }
+type PharmacyWithOwner = Pharmacy & { owner?: { full_name: string; phone: string } }
 
 export function AdminPharmaciesPage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
-  const { data: pharmacies = [], isLoading } = useQuery<PharmacyWithOwner[]>({
-    queryKey: ['admin-pharmacies'],
-    queryFn: async () => {
+  // Realtime subscription: auto-update when pharmacies are registered or status changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-pharmacies-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pharmacies' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['admin-pharmacies'] })
+        }
+      )
+      .subscribe()
 
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [queryClient])
+
+  const {
+    data: pharmacies = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery<PharmacyWithOwner[]>({
+    queryKey: ['admin-pharmacies'],
+    refetchInterval: 8000, // 8-second auto-poll so admin always sees incoming registrations
+    queryFn: async () => {
       try {
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('pharmacies')
           .select('*, owner:profiles!pharmacies_owner_id_fkey(full_name, phone)')
           .order('created_at', { ascending: false })
+
         if (error) {
-          console.error('Error fetching pharmacies:', error)
-          return []
+          console.warn('Error fetching pharmacies with fkey join, falling back to direct select:', error)
+          const fallback = await supabase
+            .from('pharmacies')
+            .select('*')
+            .order('created_at', { ascending: false })
+          if (fallback.error) {
+            console.error('Error fetching pharmacies fallback:', fallback.error)
+            return []
+          }
+          data = fallback.data as any
         }
         return (data || []) as PharmacyWithOwner[]
-      } catch {
+      } catch (err) {
+        console.error('Unexpected error fetching pharmacies:', err)
         return []
       }
     },
@@ -107,12 +140,45 @@ export function AdminPharmaciesPage() {
 
   if (isLoading) return <PageLoader />
 
+  const pendingCount = pharmacies.filter((p) => p.status === 'pending').length
+
   return (
     <div>
       <PageHeader
         title="Pharmacy Registry"
-        description={`${pharmacies.filter((p) => p.status === 'pending').length} pending verification`}
+        description={`${pendingCount} pending verification • ${pharmacies.length} total registered`}
+        actions={
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => refetch()}
+            isLoading={isFetching}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        }
       />
+
+      {/* Pending Approval Alert Banner */}
+      {pendingCount > 0 && statusFilter !== 'pending' && (
+        <div className="mb-5 flex items-center justify-between p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-lg">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+              {pendingCount} new pharmacy {pendingCount === 1 ? 'request awaits' : 'requests await'} administrative review and approval.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-amber-800 border-amber-300 hover:bg-amber-100 dark:text-amber-200 dark:border-amber-700 h-8 text-xs font-semibold"
+            onClick={() => setStatusFilter('pending')}
+          >
+            Filter Pending Requests
+          </Button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-3 mb-5">
