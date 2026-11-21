@@ -16,16 +16,42 @@ export function ForgotPasswordPage() {
     e.preventDefault()
     setLoading(true)
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
+    try {
+      // 1. Send via Resend-powered backend to bypass Supabase mailer rate limits
+      const res = await fetch('/api/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
 
-    setLoading(false)
+      if (res.ok && data.success) {
+        setSent(true)
+        return
+      }
 
-    if (error) {
-      toast.error(error.message)
-    } else {
-      setSent(true)
+      // 2. Fallback to Supabase direct client reset
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      if (error) {
+        toast.error(data.error || error.message)
+      } else {
+        setSent(true)
+      }
+    } catch {
+      // Fallback
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (error) {
+        toast.error(error.message)
+      } else {
+        setSent(true)
+      }
+    } finally {
+      setLoading(false)
     }
   }
 

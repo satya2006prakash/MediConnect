@@ -43,6 +43,7 @@ export function AdminPharmaciesPage() {
       id,
       action,
       pharmacyEmail,
+      pharmacyName,
     }: {
       id: string
       action: 'verified' | 'suspended'
@@ -59,12 +60,23 @@ export function AdminPharmaciesPage() {
         .eq('id', id)
       if (error) throw error
 
-      // If approved and pharmacy has an email, dispatch approval notification link
+      // If approved and pharmacy has an email, dispatch approval notification via Resend
       if (action === 'verified' && pharmacyEmail) {
         try {
-          await supabase.auth.resetPasswordForEmail(pharmacyEmail, {
-            redirectTo: `${window.location.origin}/login`,
+          const res = await fetch('/api/notify-pharmacy-approval', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              pharmacyEmail,
+              pharmacyName: pharmacyName || 'Pharmacy Partner',
+            }),
           })
+          if (!res.ok) {
+            // Fallback to Supabase reset email if local API is not available
+            await supabase.auth.resetPasswordForEmail(pharmacyEmail, {
+              redirectTo: `${window.location.origin}/login`,
+            })
+          }
         } catch (e) {
           console.warn('Could not send approval email:', e)
         }
