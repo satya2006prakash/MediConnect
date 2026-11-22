@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Pill, ShoppingBag, AlertTriangle, Plus, ArrowRight } from 'lucide-react'
+import { Pill, ShoppingBag, AlertTriangle, Plus, ArrowRight, MessageSquareWarning } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { StatsCard } from '@/components/ui/StatsCard'
@@ -175,6 +175,29 @@ export function PatientDashboard() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Help & Support Banner */}
+      <div className="mt-8 p-4 rounded-xl border border-[#E5EAF0] dark:border-[#30363D] bg-white dark:bg-[#161B22] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[#2457A7] dark:text-[#58A6FF] flex items-center justify-center shrink-0">
+            <MessageSquareWarning className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-[#182230] dark:text-[#F0F6FC]">
+              Experiencing an issue with the website or an order?
+            </p>
+            <p className="text-xs text-[#667085] dark:text-[#8B949E]">
+              Our administration team is here to assist. Submit a ticket and track its resolution.
+            </p>
+          </div>
+        </div>
+        <Link to="/app/complaints">
+          <Button variant="outline" size="sm" className="shrink-0 gap-1.5">
+            <MessageSquareWarning className="w-3.5 h-3.5" />
+            File a Complaint
+          </Button>
+        </Link>
       </div>
     </div>
   )

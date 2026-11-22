@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { InboxIcon, ShoppingBag, Package, ArrowRight, AlertCircle } from 'lucide-react'
+import { InboxIcon, ShoppingBag, Package, ArrowRight, AlertCircle, MessageSquareWarning } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { StatsCard } from '@/components/ui/StatsCard'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
+import { Button } from '@/components/ui/Button'
 import { formatDate } from '@/lib/utils'
 import type { Order, Pharmacy } from '@/types/database'
 
@@ -119,6 +120,29 @@ export function PharmacyDashboard() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Support & Complaints Banner */}
+      <div className="mt-8 p-4 rounded-xl border border-[#E5EAF0] dark:border-[#30363D] bg-white dark:bg-[#161B22] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 flex items-center justify-center shrink-0">
+            <MessageSquareWarning className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-[#182230] dark:text-[#F0F6FC]">
+              Facing platform bugs, inventory sync errors, or disputes?
+            </p>
+            <p className="text-xs text-[#667085] dark:text-[#8B949E]">
+              Submit a support ticket directly to the platform administrators.
+            </p>
+          </div>
+        </div>
+        <Link to="/pharmacy/complaints">
+          <Button variant="outline" size="sm" className="shrink-0 gap-1.5">
+            <MessageSquareWarning className="w-3.5 h-3.5" />
+            Support &amp; Complaints
+          </Button>
+        </Link>
       </div>
     </div>
   )
