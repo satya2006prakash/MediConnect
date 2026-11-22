@@ -179,7 +179,17 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'mediconnect-auth',
-      partialize: (state) => ({ profile: state.profile }),
+      partialize: (state) => ({
+        user: state.user,
+        session: state.session,
+        profile: state.profile,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.user) {
+          state.isLoading = false
+          state.isInitialised = true
+        }
+      },
     }
   )
 )

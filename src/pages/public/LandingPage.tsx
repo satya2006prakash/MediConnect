@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Pill, ShieldCheck, Bell, ArrowRight, Clock, Store, FileText } from 'lucide-react'
 import { PWAInstallButton } from '@/components/ui/PWAInstallButton'
+import { useAuthStore } from '@/stores/authStore'
 
 const features = [
   {
@@ -36,6 +37,15 @@ const features = [
 ]
 
 export function LandingPage() {
+  const { user, profile } = useAuthStore()
+
+  const dashboardPath =
+    profile?.role === 'admin'
+      ? '/admin/dashboard'
+      : profile?.role === 'pharmacy_admin'
+        ? '/pharmacy/dashboard'
+        : '/app/dashboard'
+
   return (
     <div>
       {/* Hero */}
@@ -57,19 +67,31 @@ export function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-sm sm:max-w-none mx-auto">
-            <Link
-              to="/register/patient"
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-primary-600 text-white text-sm font-medium rounded hover:bg-primary-700 transition-colors shadow-xs"
-            >
-              Start managing medicines
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              to="/register/pharmacy"
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-white dark:bg-[#21262D] text-slate-700 dark:text-slate-200 text-sm font-medium rounded border border-border dark:border-[#30363D] hover:bg-slate-50 dark:hover:bg-[#30363D] transition-colors"
-            >
-              Register your pharmacy
-            </Link>
+            {user && profile ? (
+              <Link
+                to={dashboardPath}
+                className="inline-flex items-center justify-center gap-2 px-7 py-3 bg-primary-600 text-white text-sm font-semibold rounded hover:bg-primary-700 transition-colors shadow-xs"
+              >
+                Go to Dashboard
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/register/patient"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-primary-600 text-white text-sm font-medium rounded hover:bg-primary-700 transition-colors shadow-xs"
+                >
+                  Start managing medicines
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <Link
+                  to="/register/pharmacy"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-white dark:bg-[#21262D] text-slate-700 dark:text-slate-200 text-sm font-medium rounded border border-border dark:border-[#30363D] hover:bg-slate-50 dark:hover:bg-[#30363D] transition-colors"
+                >
+                  Register your pharmacy
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -108,10 +130,10 @@ export function LandingPage() {
             Join thousands of patients who never miss a refill.
           </p>
           <Link
-            to="/register/patient"
+            to={user && profile ? dashboardPath : '/register/patient'}
             className="inline-flex items-center gap-2 px-6 py-2.5 bg-white text-primary-700 dark:text-primary-800 text-sm font-medium rounded hover:bg-primary-50 transition-colors shadow-xs"
           >
-            Create free account
+            {user && profile ? 'Go to your Dashboard' : 'Create free account'}
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

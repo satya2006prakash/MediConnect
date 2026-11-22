@@ -13,32 +13,48 @@ export function useAuthBootstrap() {
   useEffect(() => {
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
       if (session?.user) {
+        setSession(session)
+        setUser(session.user)
         fetchProfile(session.user.id).finally(() => {
           setLoading(false)
           setInitialised(true)
         })
       } else {
-        reset()
-      }
-    })
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session)
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          await fetchProfile(session.user.id)
-        } else {
+        // If not logged in and no mock user, mark initialized
+        const currentUser = useAuthStore.getState().user
+        if (!currentUser) {
           reset()
         }
         setLoading(false)
         setInitialised(true)
       }
-    )
+    })
+
+    // Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        // User explicitly logged out
+        reset()
+        setLoading(false)
+        setInitialised(true)
+        return
+      }
+
+      if (session?.user) {
+        setSession(session)
+        setUser(session.user)
+        await fetchProfile(session.user.id)
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        setSession(session)
+        setUser(session.user)
+      }
+
+      setLoading(false)
+      setInitialised(true)
+    })
 
     return () => subscription.unsubscribe()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

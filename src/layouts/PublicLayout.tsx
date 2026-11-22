@@ -1,8 +1,18 @@
 import { Link, Outlet } from 'react-router-dom'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { useAuthStore } from '@/stores/authStore'
 
 export function PublicLayout() {
+  const { user, profile } = useAuthStore()
+
+  const dashboardPath =
+    profile?.role === 'admin'
+      ? '/admin/dashboard'
+      : profile?.role === 'pharmacy_admin'
+        ? '/pharmacy/dashboard'
+        : '/app/dashboard'
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Nav */}
@@ -12,15 +22,27 @@ export function PublicLayout() {
 
           <nav className="flex items-center gap-3 sm:gap-5">
             <ThemeToggle size="sm" />
-            <Link to="/login" className="text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
-              Sign in
-            </Link>
-            <Link
-              to="/register/patient"
-              className="text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors shadow-xs"
-            >
-              Get started
-            </Link>
+            {user && profile ? (
+              <Link
+                to={dashboardPath}
+                className="text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors shadow-xs inline-flex items-center gap-1.5"
+              >
+                <span>Dashboard</span>
+                <span>→</span>
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" className="text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+                  Sign in
+                </Link>
+                <Link
+                  to="/register/patient"
+                  className="text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors shadow-xs"
+                >
+                  Get started
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
