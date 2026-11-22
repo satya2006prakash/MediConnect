@@ -1,11 +1,11 @@
-﻿export function registerServiceWorker() {
+export function registerServiceWorker() {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     return
   }
 
-  window.addEventListener('load', () => {
+  const register = () => {
     navigator.serviceWorker
-      .register('/sw.js')
+      .register('/sw.js', { scope: '/' })
       .then((registration) => {
         // Check for updates
         registration.onupdatefound = () => {
@@ -27,5 +27,11 @@
       .catch((error) => {
         console.warn('[PWA] Service worker registration failed:', error)
       })
-  })
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    register()
+  } else {
+    window.addEventListener('load', register)
+  }
 }

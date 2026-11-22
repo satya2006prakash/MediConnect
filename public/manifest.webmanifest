@@ -1,70 +1,79 @@
-﻿{
-  name: MediConnect – Smart Medicine Reordering,
-  short_name: MediConnect,
-  description: Track your medicines, get refill reminders, and connect with verified pharmacies.,
-  id: /,
-  start_url: /,
-  scope: /,
-  display: standalone,
-  display_override: [standalone, minimal-ui, browser],
-  orientation: portrait-primary,
-  background_color: #FFFFFF,
-  theme_color: #2457A7,
-  categories: [medical, health, lifestyle, shopping],
-  icons: [
+{
+  "name": "MediConnect – Smart Medicine Reordering",
+  "short_name": "MediConnect",
+  "description": "Track your medicines, get refill reminders, and connect with verified pharmacies.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
+  "orientation": "portrait-primary",
+  "background_color": "#FFFFFF",
+  "theme_color": "#2457A7",
+  "categories": [
+    "medical",
+    "health",
+    "lifestyle",
+    "shopping"
+  ],
+  "icons": [
     {
-      src: /icons/icon-192x192.png,
-      sizes: 192x192,
-      type: image/png,
-      purpose: any
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      src: /icons/icon-512x512.png,
-      sizes: 512x512,
-      type: image/png,
-      purpose: any
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      src: /icons/icon-maskable-512x512.png,
-      sizes: 512x512,
-      type: image/png,
-      purpose: maskable
+      "src": "/icons/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  shortcuts: [
+  "shortcuts": [
     {
-      name: My Medicines,
-      short_name: Medicines,
-      description: View and manage your medicine schedule and supplies,
-      url: /app/medicines,
-      icons: [
+      "name": "My Medicines",
+      "short_name": "Medicines",
+      "description": "View and manage your medicine schedule and supplies",
+      "url": "/app/medicines",
+      "icons": [
         {
-          src: /icons/icon-192x192.png,
-          sizes: 192x192
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
         }
       ]
     },
     {
-      name: Orders & Refills,
-      short_name: Orders,
-      description: Track refill requests and pharmacy bills,
-      url: /app/orders,
-      icons: [
+      "name": "Orders & Refills",
+      "short_name": "Orders",
+      "description": "Track refill requests and pharmacy bills",
+      "url": "/app/orders",
+      "icons": [
         {
-          src: /icons/icon-192x192.png,
-          sizes: 192x192
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
         }
       ]
     },
     {
-      name: Reminders,
-      short_name: Reminders,
-      description: Check daily dosage and refill alert schedules,
-      url: /app/reminders,
-      icons: [
+      "name": "Reminders",
+      "short_name": "Reminders",
+      "description": "Check daily dosage and refill alert schedules",
+      "url": "/app/reminders",
+      "icons": [
         {
-          src: /icons/icon-192x192.png,
-          sizes: 192x192
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
         }
       ]
     }

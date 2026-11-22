@@ -1,9 +1,10 @@
-﻿const CACHE_NAME = 'mediconnect-v1';
+const CACHE_NAME = 'mediconnect-v2';
 
 const STATIC_PRECACHE = [
   '/',
   '/index.html',
   '/offline.html',
+  '/manifest.json',
   '/manifest.webmanifest',
   '/favicon.svg',
   '/logo.png',
@@ -17,9 +18,11 @@ const STATIC_PRECACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_PRECACHE).catch((err) => {
-        console.warn('PWA Precache warning:', err);
-      });
+      return Promise.allSettled(
+        STATIC_PRECACHE.map((url) =>
+          cache.add(url).catch((err) => console.warn('[PWA] Cache skipped for:', url, err))
+        )
+      );
     })
   );
   self.skipWaiting();

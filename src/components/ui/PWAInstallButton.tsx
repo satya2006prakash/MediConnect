@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Download, CheckCircle, Share, Smartphone } from 'lucide-react'
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
-}
+import { getDeferredPrompt, clearDeferredPrompt } from '@/lib/pwa'
 
 interface PWAInstallButtonProps {
   variant?: 'card' | 'compact' | 'button'
@@ -12,7 +8,7 @@ interface PWAInstallButtonProps {
 }
 
 export function PWAInstallButton({ variant = 'card', className = '' }: PWAInstallButtonProps) {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(() => getDeferredPrompt())
   const [isStandalone, setIsStandalone] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
   const [showIOSGuide, setShowIOSGuide] = useState(false)
@@ -30,25 +26,40 @@ export function PWAInstallButton({ variant = 'card', className = '' }: PWAInstal
     const ios = /iphone|ipad|ipod/i.test(ua)
     setIsIOS(ios)
 
-    // 3. Listen for Chromium/Android install prompt
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault()
-      setDeferredPrompt(e as BeforeInstallPromptEvent)
+    // Check existing prompt
+    const existing = getDeferredPrompt()
+    if (existing) {
+      setDeferredPrompt(existing)
     }
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
+    const onPromptReady = () => {
+      setDeferredPrompt(getDeferredPrompt())
+    }
 
-    const handleAppInstalled = () => {
+    const onAppInstalled = () => {
       setIsStandalone(true)
       setDeferredPrompt(null)
+      clearDeferredPrompt()
       setShowIOSGuide(false)
       setShowFallbackTip(false)
     }
-    window.addEventListener('appinstalled', handleAppInstalled)
+
+    window.addEventListener('pwa-prompt-ready', onPromptReady)
+    window.addEventListener('pwa-app-installed', onAppInstalled)
+
+    // Also listen locally as backup
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+    }
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
+    window.addEventListener('appinstalled', onAppInstalled)
 
     return () => {
+      window.removeEventListener('pwa-prompt-ready', onPromptReady)
+      window.removeEventListener('pwa-app-installed', onAppInstalled)
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
-      window.removeEventListener('appinstalled', handleAppInstalled)
+      window.removeEventListener('appinstalled', onAppInstalled)
     }
   }, [])
 
@@ -58,12 +69,20 @@ export function PWAInstallButton({ variant = 'card', className = '' }: PWAInstal
       return
     }
 
-    if (deferredPrompt) {
-      deferredPrompt.prompt()
-      const { outcome } = await deferredPrompt.userChoice
-      if (outcome === 'accepted') {
-        setIsStandalone(true)
-        setDeferredPrompt(null)
+    const promptEvent = deferredPrompt || getDeferredPrompt()
+
+    if (promptEvent) {
+      try {
+        promptEvent.prompt()
+        const { outcome } = await promptEvent.userChoice
+        if (outcome === 'accepted') {
+          setIsStandalone(true)
+          setDeferredPrompt(null)
+          clearDeferredPrompt()
+        }
+      } catch (err) {
+        console.warn('Install prompt error:', err)
+        setShowFallbackTip(true)
       }
     } else {
       setShowFallbackTip((prev) => !prev)
