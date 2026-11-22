@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Pill, ShieldCheck, Bell, ArrowRight, Clock, Store, FileText } from 'lucide-react'
+import { PWAInstallButton } from '@/components/ui/PWAInstallButton'
 
 const features = [
   {
@@ -114,6 +115,11 @@ export function LandingPage() {
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
+      </section>
+
+      {/* Install App Section at the bottom of the page */}
+      <section className="border-t border-border dark:border-[#30363D] bg-slate-50 dark:bg-[#0D1117] py-12 px-4 sm:px-6">
+        <PWAInstallButton variant="card" />
       </section>
     </div>
   )

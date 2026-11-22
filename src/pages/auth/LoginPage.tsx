@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/FormField'
 import toast from 'react-hot-toast'
+import { PWAInstallButton } from '@/components/ui/PWAInstallButton'
 import type { UserRole } from '@/types/database'
 
 const schema = z.object({
@@ -204,6 +205,11 @@ export function LoginPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Install option at bottom of page */}
+        <div className="mt-4">
+          <PWAInstallButton variant="compact" />
         </div>
 
       </div>
