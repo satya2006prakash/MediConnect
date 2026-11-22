@@ -55,3 +55,70 @@ export function truncate(str: string, length: number): string {
   if (str.length <= length) return str
   return str.slice(0, length) + '...'
 }
+
+export interface BillMetadata {
+  discount_percent: number
+  discount_amount: number
+  tax_percent: number
+  tax_amount: number
+  delivery_fee?: number
+  note?: string
+}
+
+export interface ParsedBillDetails {
+  discountPercent: number
+  discountAmount: number
+  taxPercent: number
+  taxAmount: number
+  taxableSubtotal: number
+  note?: string
+}
+
+export function parseBillMetadata(
+  patientNote: string | null | undefined,
+  subtotal: number = 0,
+  tax: number = 0,
+  deliveryFee: number = 0,
+  total: number = 0
+): ParsedBillDetails {
+  if (patientNote) {
+    try {
+      const parsed = JSON.parse(patientNote)
+      if (parsed && typeof parsed === 'object') {
+        const discountPercent = Number(parsed.discount_percent) || 0
+        const discountAmount =
+          typeof parsed.discount_amount === 'number'
+            ? parsed.discount_amount
+            : Math.round(((subtotal * discountPercent) / 100) * 100) / 100
+        const taxPercent = Number(parsed.tax_percent) || 0
+        const taxAmount = typeof parsed.tax_amount === 'number' ? parsed.tax_amount : tax
+        const taxableSubtotal = Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100)
+        return {
+          discountPercent,
+          discountAmount,
+          taxPercent,
+          taxAmount,
+          taxableSubtotal,
+          note: parsed.note || '',
+        }
+      }
+    } catch {
+      // not JSON, fallback to plain text note below
+    }
+  }
+
+  // Fallback calculation for older records or plain-text notes
+  const calculatedDiscount = Math.max(0, Math.round(((subtotal + deliveryFee + tax) - total) * 100) / 100)
+  const discountPercent = subtotal > 0 && calculatedDiscount > 0 ? (calculatedDiscount / subtotal) * 100 : 0
+  const taxableSubtotal = Math.max(0, Math.round((subtotal - calculatedDiscount) * 100) / 100)
+  const taxPercent = taxableSubtotal > 0 && tax > 0 ? (tax / taxableSubtotal) * 100 : 0
+
+  return {
+    discountPercent: Number(discountPercent.toFixed(1)),
+    discountAmount: calculatedDiscount,
+    taxPercent: Number(taxPercent.toFixed(1)),
+    taxAmount: tax,
+    taxableSubtotal,
+    note: patientNote || undefined,
+  }
+}

@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { OrderTimeline } from '@/components/ui/OrderTimeline'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { formatDate, formatCurrency } from '@/lib/utils'
+import { formatDate, formatCurrency, parseBillMetadata } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import type { Order, Bill, BillItem, OrderItem } from '@/types/database'
 
@@ -37,7 +37,8 @@ export function OrderDetailPage() {
           .eq('id', id!)
           .maybeSingle()
         if (error || !data) return null
-        return data as FullOrder
+        const billData = Array.isArray(data.bill) ? data.bill[0] : data.bill
+        return { ...data, bill: billData || null } as FullOrder
       } catch {
         return null
       }
@@ -121,62 +122,93 @@ export function OrderDetailPage() {
         </Card>
 
         {/* Bill */}
-        {order.bill && (
-          <Card>
-            <CardHeader
-              title="Bill from pharmacy"
-              actions={<StatusBadge status={order.bill.status} />}
-            />
+        {order.bill && (() => {
+          const billMeta = parseBillMetadata(
+            order.bill.patient_note,
+            order.bill.subtotal,
+            order.bill.tax,
+            order.bill.delivery_fee,
+            order.bill.total
+          )
 
-            <div className="space-y-2 mb-4">
-              {order.bill.items?.map((item) => (
-                <div key={item.id} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-700">{item.medicine_name} × {item.quantity}</span>
-                  <span className="text-slate-900">{formatCurrency(item.total_price)}</span>
-                </div>
-              ))}
-            </div>
+          return (
+            <Card>
+              <CardHeader
+                title="Bill from pharmacy"
+                actions={<StatusBadge status={order.bill.status} />}
+              />
 
-            <div className="pt-3 border-t border-border space-y-1.5">
-              <div className="flex justify-between text-sm text-slate-500">
-                <span>Subtotal</span><span>{formatCurrency(order.bill.subtotal)}</span>
+              <div className="space-y-2 mb-4">
+                {order.bill.items?.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between text-sm py-1 border-b border-border last:border-0">
+                    <span className="text-slate-700">{item.medicine_name} × {item.quantity}</span>
+                    <span className="text-slate-900 font-medium">{formatCurrency(item.total_price)}</span>
+                  </div>
+                ))}
               </div>
-              {order.bill.delivery_fee > 0 && (
+
+              <div className="pt-3 border-t border-border space-y-1.5">
                 <div className="flex justify-between text-sm text-slate-500">
-                  <span>Delivery fee</span><span>{formatCurrency(order.bill.delivery_fee)}</span>
+                  <span>Subtotal</span>
+                  <span className="text-slate-900 font-medium">{formatCurrency(order.bill.subtotal)}</span>
+                </div>
+                {billMeta.discountAmount > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-600 font-medium">
+                    <span>Discount ({billMeta.discountPercent}%)</span>
+                    <span>- {formatCurrency(billMeta.discountAmount)}</span>
+                  </div>
+                )}
+                {billMeta.discountAmount > 0 && billMeta.taxAmount > 0 && (
+                  <div className="flex justify-between text-xs text-slate-400">
+                    <span>Taxable Subtotal</span>
+                    <span>{formatCurrency(billMeta.taxableSubtotal)}</span>
+                  </div>
+                )}
+                {order.bill.tax > 0 && (
+                  <div className="flex justify-between text-sm text-blue-600 font-medium">
+                    <span>Tax / GST ({billMeta.taxPercent}%)</span>
+                    <span>+ {formatCurrency(order.bill.tax)}</span>
+                  </div>
+                )}
+                {order.bill.delivery_fee > 0 && (
+                  <div className="flex justify-between text-sm text-slate-500">
+                    <span>Delivery fee</span>
+                    <span className="text-slate-900 font-medium">{formatCurrency(order.bill.delivery_fee)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-border">
+                  <span>Total</span>
+                  <span className="text-primary-600">{formatCurrency(order.bill.total)}</span>
+                </div>
+                {billMeta.note && (
+                  <p className="text-xs text-slate-500 pt-2 border-t border-border italic">
+                    Note from pharmacy: {billMeta.note}
+                  </p>
+                )}
+              </div>
+
+              {hasPendingBill && (
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => billResponseMutation.mutate('rejected')}
+                    isLoading={billResponseMutation.isPending}
+                  >
+                    Reject bill
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => billResponseMutation.mutate('approved')}
+                    isLoading={billResponseMutation.isPending}
+                  >
+                    Approve &amp; confirm
+                  </Button>
                 </div>
               )}
-              {order.bill.tax > 0 && (
-                <div className="flex justify-between text-sm text-slate-500">
-                  <span>Tax</span><span>{formatCurrency(order.bill.tax)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm font-semibold text-slate-900 pt-1 border-t border-border">
-                <span>Total</span><span>{formatCurrency(order.bill.total)}</span>
-              </div>
-            </div>
-
-            {hasPendingBill && (
-              <div className="mt-4 flex gap-2">
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => billResponseMutation.mutate('rejected')}
-                  isLoading={billResponseMutation.isPending}
-                >
-                  Reject bill
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => billResponseMutation.mutate('approved')}
-                  isLoading={billResponseMutation.isPending}
-                >
-                  Approve &amp; confirm
-                </Button>
-              </div>
-            )}
-          </Card>
-        )}
+            </Card>
+          )
+        })()}
 
         {/* Timeline */}
         <Card>
