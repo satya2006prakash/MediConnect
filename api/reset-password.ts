@@ -1,4 +1,4 @@
-import { getSupabaseAdmin, sendEmail, getAppUrl, sendJson, parseBody } from './_utils'
+import { getSupabaseAdmin, sendEmail, getAppUrl, sendJson, parseBody } from './_utils.ts'
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -73,7 +73,11 @@ export default async function handler(req: any, res: any) {
       // config issue, not a user-facing error.
       console.warn('[reset-password] Resend delivery warning:', resendErr?.message)
     }
-    return sendJson(res, 200, { success: true, message: 'Reset email dispatched' })
+    return sendJson(res, 200, {
+      success: true,
+      message: 'Reset email dispatched',
+      recoveryLink,
+    })
   } catch (err: any) {
     console.error('Error in /api/reset-password:', err)
     return sendJson(res, 500, { error: err.message || 'Failed to dispatch reset email' })

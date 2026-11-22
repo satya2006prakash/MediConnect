@@ -1,4 +1,4 @@
-import { sendEmail, getAppUrl, sendJson, parseBody } from './_utils'
+import { sendEmail, getAppUrl, sendJson, parseBody } from './_utils.ts'
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {

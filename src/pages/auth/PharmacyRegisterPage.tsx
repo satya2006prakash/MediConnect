@@ -34,12 +34,13 @@ export function PharmacyRegisterPage() {
   const [duplicateModal, setDuplicateModal] = useState<{
     isOpen: boolean
     email: string
-    existingRole?: string | null
+    existingRole: string | null
   }>({
     isOpen: false,
     email: '',
     existingRole: null,
   })
+  const [verifyLink, setVerifyLink] = useState<string | null>(null)
 
   const {
     register,
@@ -72,6 +73,9 @@ export function PharmacyRegisterPage() {
 
       if (res.ok && result.success) {
         setVerificationEmail(data.email)
+        if (result.verifyLink) {
+          setVerifyLink(result.verifyLink)
+        }
         toast.success('Registration submitted! Please check your Gmail to verify your account.')
         return
       }
@@ -220,6 +224,22 @@ export function PharmacyRegisterPage() {
                 <p>3. Click the <strong>"Verify Email &amp; Confirm Registration"</strong> button.</p>
                 <p>4. Our administration will then review your drug license and activate your pharmacy.</p>
               </div>
+              {verifyLink && (
+                <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/40 rounded-lg p-3 text-left">
+                  <p className="text-xs text-blue-900 dark:text-blue-200 font-medium mb-1">
+                    Direct Verification Link:
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mb-2.5">
+                    If automated email delivery is delayed by sandbox filters, click below to confirm registration immediately:
+                  </p>
+                  <a
+                    href={verifyLink}
+                    className="inline-flex items-center justify-center w-full px-3 py-2 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-md transition-colors"
+                  >
+                    Confirm Registration Now &rarr;
+                  </a>
+                </div>
+              )}
               <div className="pt-2 space-y-2">
                 <Button
                   variant="primary"

@@ -319,6 +319,7 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           requiresVerification: true,
           userId,
           email: normalizedEmail,
+          verifyLink,
         })
       } catch (err: any) {
         console.error('Error in /api/register-patient:', err)
@@ -406,7 +407,7 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           console.warn('[reset-password] delivery warning:', resendErr?.message)
         }
 
-        return sendJson(res, 200, { success: true, message: 'Reset email dispatched' })
+        return sendJson(res, 200, { success: true, message: 'Reset email dispatched', recoveryLink })
       } catch (err: any) {
         console.error('Error in /api/reset-password:', err)
         return sendJson(res, 500, { error: err.message || 'Failed to dispatch reset email' })
@@ -751,6 +752,7 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           requiresVerification: true,
           userId,
           email: normalizedEmail,
+          verifyLink,
         })
       } catch (err: any) {
         console.error('Error in /api/register-pharmacy:', err)

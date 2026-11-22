@@ -1,4 +1,4 @@
-import { getSupabaseAdmin, sendEmail, getAppUrl, sendJson, parseBody } from './_utils'
+import { getSupabaseAdmin, sendEmail, getAppUrl, sendJson, parseBody } from './_utils.ts'
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -115,6 +115,7 @@ export default async function handler(req: any, res: any) {
       requiresVerification: true,
       userId,
       email: normalizedEmail,
+      verifyLink,
     })
   } catch (err: any) {
     console.error('Error in /api/register-patient:', err)

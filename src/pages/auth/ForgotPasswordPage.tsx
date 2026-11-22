@@ -10,6 +10,7 @@ export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [recoveryLink, setRecoveryLink] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,17 +22,25 @@ export function ForgotPasswordPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
-      const data = await res.json()
+      
+      let data: any = {}
+      try {
+        data = await res.json()
+      } catch {
+        throw new Error('Server returned an invalid response. Please try again.')
+      }
 
       if (res.ok && data.success) {
         setSent(true)
+        if (data.recoveryLink) {
+          setRecoveryLink(data.recoveryLink)
+        }
         return
       }
 
-      // API returned a genuine error (e.g., user not found, server misconfigured)
       toast.error(data.error || 'Failed to send reset email. Please try again.')
-    } catch {
-      toast.error('Network error. Please check your connection and try again.')
+    } catch (err: any) {
+      toast.error(err.message || 'Network error. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -46,17 +55,39 @@ export function ForgotPasswordPage() {
 
         <div className="bg-white dark:bg-[#161B22] border border-border dark:border-[#30363D] rounded-xl shadow-xs p-6">
           {sent ? (
-            <div className="text-center py-4">
-              <div className="w-12 h-12 bg-green-50 dark:bg-[#0E291C] rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="text-center py-4 space-y-4">
+              <div className="w-12 h-12 bg-green-50 dark:bg-[#0E291C] rounded-full flex items-center justify-center mx-auto mb-2">
                 <Mail className="w-5 h-5 text-[#16865B]" />
               </div>
-              <h2 className="text-base font-semibold text-slate-900 dark:text-[#F0F6FC] mb-2">Check your email</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
-                We've sent a password reset link to <strong>{email}</strong>
-              </p>
-              <Link to="/login" className="text-sm text-primary-600 dark:text-primary-400 hover:underline">
-                Back to sign in
-              </Link>
+              <div>
+                <h2 className="text-base font-semibold text-slate-900 dark:text-[#F0F6FC] mb-1">Check your email</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  We've sent a password reset link to <strong>{email}</strong>
+                </p>
+              </div>
+
+              {recoveryLink && (
+                <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/40 rounded-lg p-3 text-left">
+                  <p className="text-xs text-blue-900 dark:text-blue-200 font-medium mb-1">
+                    Direct Reset Link Available:
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mb-2.5">
+                    If automated email delivery is blocked or delayed by your mail server, you can set your new password directly:
+                  </p>
+                  <a
+                    href={recoveryLink}
+                    className="inline-flex items-center justify-center w-full px-3 py-2 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-md transition-colors"
+                  >
+                    Click to Set New Password &rarr;
+                  </a>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <Link to="/login" className="text-sm text-primary-600 dark:text-primary-400 hover:underline">
+                  Back to sign in
+                </Link>
+              </div>
             </div>
           ) : (
             <>
