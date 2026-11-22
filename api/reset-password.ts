@@ -76,7 +76,6 @@ export default async function handler(req: any, res: any) {
     return sendJson(res, 200, {
       success: true,
       message: 'Reset email dispatched',
-      recoveryLink,
     })
   } catch (err: any) {
     console.error('Error in /api/reset-password:', err)

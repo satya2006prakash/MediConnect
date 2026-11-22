@@ -40,7 +40,6 @@ export function PatientRegisterPage() {
     email: '',
     existingRole: null,
   })
-  const [verifyLink, setVerifyLink] = useState<string | null>(null)
 
   const {
     register,
@@ -72,9 +71,6 @@ export function PatientRegisterPage() {
 
       if (res.ok && result.success) {
         setVerificationEmail(data.email)
-        if (result.verifyLink) {
-          setVerifyLink(result.verifyLink)
-        }
         toast.success('Registration successful! Please check your Gmail to verify your account.')
         return
       }
@@ -195,22 +191,6 @@ export function PatientRegisterPage() {
                 <p>2. Look for the email: <em>"Confirm your MediConnect Account – Verify Your Email"</em>.</p>
                 <p>3. Click the <strong>"Verify Email &amp; Activate Account"</strong> button.</p>
               </div>
-              {verifyLink && (
-                <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/40 rounded-lg p-3 text-left">
-                  <p className="text-xs text-blue-900 dark:text-blue-200 font-medium mb-1">
-                    Direct Activation Link:
-                  </p>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 mb-2.5">
-                    If email delivery is delayed by sandbox filters, you can activate your account immediately:
-                  </p>
-                  <a
-                    href={verifyLink}
-                    className="inline-flex items-center justify-center w-full px-3 py-2 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-md transition-colors"
-                  >
-                    Activate Account Now &rarr;
-                  </a>
-                </div>
-              )}
               <div className="pt-2 space-y-2">
                 <Button
                   variant="primary"

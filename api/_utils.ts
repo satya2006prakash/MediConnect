@@ -69,6 +69,7 @@ export async function sendEmail(options: {
   html: string
   text?: string
 }) {
+  const gmailUser = process.env.GMAIL_USER || 'satya2006prakash@gmail.com'
   const gmailPass = (
     process.env.GMAIL_APP_PASSWORD ||
     Buffer.from('ZWZwam95ZW5zeHdnZm90ZA==', 'base64').toString('utf8')

@@ -285,10 +285,11 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
         })
 
         // Dispatch verification link email to patient
-        sendEmail(env, {
-          to: normalizedEmail,
-          subject: 'Confirm your MediConnect Account – Verify Your Email ✉️',
-          html: `
+        try {
+          await sendEmail(env, {
+            to: normalizedEmail,
+            subject: 'Confirm your MediConnect Account – Verify Your Email ✉️',
+            html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
               <div style="text-align: center; margin-bottom: 24px;">
                 <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect</h2>
@@ -316,14 +317,16 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
               </div>
             </div>
           `,
-        }).catch((err) => console.warn('Could not dispatch patient registration email:', err?.message))
+          })
+        } catch (err: any) {
+          console.warn('Could not dispatch patient registration email:', err?.message)
+        }
 
         return sendJson(res, 200, {
           success: true,
           requiresVerification: true,
           userId,
           email: normalizedEmail,
-          verifyLink,
         })
       } catch (err: any) {
         console.error('Error in /api/register-patient:', err)
@@ -411,7 +414,7 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           console.warn('[reset-password] delivery warning:', resendErr?.message)
         }
 
-        return sendJson(res, 200, { success: true, message: 'Reset email dispatched', recoveryLink })
+        return sendJson(res, 200, { success: true, message: 'Reset email dispatched' })
       } catch (err: any) {
         console.error('Error in /api/reset-password:', err)
         return sendJson(res, 500, { error: err.message || 'Failed to dispatch reset email' })
@@ -674,7 +677,8 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
         }
 
         // 1. Notify pharmacy owner (confirmation & verification link)
-        sendEmail(env, {
+        try {
+          await sendEmail(env, {
           to: normalizedEmail,
           subject: `Verify your Pharmacy Registration – ${pharmacyName} ✉️`,
           html: `
@@ -719,13 +723,17 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
               </div>
             </div>
           `,
-        }).catch((err) => console.warn('Could not dispatch pharmacy registration email:', err?.message))
+          })
+        } catch (err: any) {
+          console.warn('Could not dispatch pharmacy registration email:', err?.message)
+        }
 
         // 2. Alert admin of new pending registration
-        sendEmail(env, {
-          to: 'satya2006prakash@gmail.com',
-          subject: `[Action Required] New Pharmacy Registration: ${pharmacyName}`,
-          html: `
+        try {
+          await sendEmail(env, {
+            to: 'satya2006prakash@gmail.com',
+            subject: `[Action Required] New Pharmacy Registration: ${pharmacyName}`,
+            html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
               <div style="text-align: center; margin-bottom: 24px;">
                 <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect Admin</h2>
@@ -749,14 +757,16 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
               </div>
             </div>
           `,
-        }).catch((err) => console.warn('Could not dispatch admin alert email:', err?.message))
+          })
+        } catch (err: any) {
+          console.warn('Could not dispatch admin alert email:', err?.message)
+        }
 
         return sendJson(res, 200, {
           success: true,
           requiresVerification: true,
           userId,
           email: normalizedEmail,
-          verifyLink,
         })
       } catch (err: any) {
         console.error('Error in /api/register-pharmacy:', err)

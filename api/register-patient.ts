@@ -77,10 +77,11 @@ export default async function handler(req: any, res: any) {
     })
 
     // 4. Dispatch Email Verification Link to Patient's Gmail
-    sendEmail({
-      to: normalizedEmail,
-      subject: 'Confirm your MediConnect Account – Verify Your Email ✉️',
-      html: `
+    try {
+      await sendEmail({
+        to: normalizedEmail,
+        subject: 'Confirm your MediConnect Account – Verify Your Email ✉️',
+        html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
           <div style="text-align: center; margin-bottom: 24px;">
             <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect</h2>
@@ -108,14 +109,16 @@ export default async function handler(req: any, res: any) {
           </div>
         </div>
       `,
-    }).catch((err) => console.warn('Could not dispatch patient email verification link:', err.message))
+      })
+    } catch (err: any) {
+      console.warn('Could not dispatch patient email verification link:', err?.message)
+    }
 
     return sendJson(res, 200, {
       success: true,
       requiresVerification: true,
       userId,
       email: normalizedEmail,
-      verifyLink,
     })
   } catch (err: any) {
     console.error('Error in /api/register-patient:', err)

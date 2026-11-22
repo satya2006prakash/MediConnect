@@ -181,10 +181,11 @@ export default async function handler(req: any, res: any) {
     }
 
     // 1. Notify pharmacy owner with Verification Link & Confirmation
-    sendEmail({
-      to: normalizedEmail,
-      subject: `Verify your Pharmacy Registration – ${pharmacyName} ✉️`,
-      html: `
+    try {
+      await sendEmail({
+        to: normalizedEmail,
+        subject: `Verify your Pharmacy Registration – ${pharmacyName} ✉️`,
+        html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
           <div style="text-align: center; margin-bottom: 24px;">
             <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect</h2>
@@ -226,13 +227,17 @@ export default async function handler(req: any, res: any) {
           </div>
         </div>
       `,
-    }).catch((err) => console.warn('Could not dispatch pharmacy registration email:', err.message))
+      })
+    } catch (err: any) {
+      console.warn('Could not dispatch pharmacy registration email:', err?.message)
+    }
 
     // 2. Alert admin of new pending registration
-    sendEmail({
-      to: 'satya2006prakash@gmail.com',
-      subject: `[Action Required] New Pharmacy Registration: ${pharmacyName}`,
-      html: `
+    try {
+      await sendEmail({
+        to: 'satya2006prakash@gmail.com',
+        subject: `[Action Required] New Pharmacy Registration: ${pharmacyName}`,
+        html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
           <div style="text-align: center; margin-bottom: 24px;">
             <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect Admin</h2>
@@ -256,14 +261,16 @@ export default async function handler(req: any, res: any) {
           </div>
         </div>
       `,
-    }).catch((err) => console.warn('Could not dispatch admin alert email:', err.message))
+      })
+    } catch (err: any) {
+      console.warn('Could not dispatch admin alert email:', err?.message)
+    }
 
     return sendJson(res, 200, {
       success: true,
       requiresVerification: true,
       userId,
       email: normalizedEmail,
-      verifyLink,
     })
   } catch (err: any) {
     console.error('Error in /api/register-pharmacy:', err)
