@@ -1,19 +1,21 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Users, Search } from 'lucide-react'
+import { Users, Search, Trash2, AlertTriangle, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
-import { formatDate } from '@/lib/utils'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/Button'
+import { formatDate, cn } from '@/lib/utils'
+import toast from 'react-hot-toast'
 import type { Profile } from '@/types/database'
 
 export function AdminUsersPage() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
-
-
+  const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const queryClient = useQueryClient()
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -34,6 +36,28 @@ export function AdminUsersPage() {
     },
   })
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    try {
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: deleteTarget.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete user account')
+      }
+      toast.success(`User "${deleteTarget.full_name}" deleted permanently`)
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      setDeleteTarget(null)
+    } catch (err: any) {
+      toast.error(err.message || 'Error deleting user')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const filtered = users.filter((u) => {
     const matchesSearch = u.full_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -99,6 +123,7 @@ export function AdminUsersPage() {
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Role</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">City</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Joined</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -124,10 +149,75 @@ export function AdminUsersPage() {
                   <td className="px-5 py-3.5">{rolePill(user.role)}</td>
                   <td className="px-5 py-3.5 text-slate-500">{user.city ?? '—'}</td>
                   <td className="px-5 py-3.5 text-slate-500">{formatDate(user.created_at)}</td>
+                  <td className="px-5 py-3.5 text-right">
+                    {user.role === 'admin' ? (
+                      <span className="text-xs text-slate-400 font-medium italic">Protected</span>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDeleteTarget(user)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 text-xs h-8 px-2.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-1 text-red-500" />
+                        Delete
+                      </Button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-red-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3 text-red-600">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900 text-base">Delete User Account</h3>
+                  <p className="text-xs text-slate-500">Permanent administrator action</p>
+                </div>
+              </div>
+              <button
+                onClick={() => !isDeleting && setDeleteTarget(null)}
+                disabled={isDeleting}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-slate-600 mb-4 leading-relaxed">
+              Are you sure you want to permanently delete the account for{' '}
+              <strong className="text-slate-900">{deleteTarget.full_name}</strong> ({rolePill(deleteTarget.role)})?
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800 mb-5 leading-relaxed">
+              ⚠️ This action cannot be undone. This will permanently delete the user's Supabase Auth identity, profile, and all dependent orders, store inventory, complaints, and medicines.
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleConfirmDelete}
+                isLoading={isDeleting}
+              >
+                Permanently Delete
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

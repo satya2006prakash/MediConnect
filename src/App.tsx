@@ -118,6 +118,7 @@ function AppRoutes() {
         <Route path="requests/:id" element={<PharmacyRequestDetailPage />} />
         <Route path="orders" element={<PharmacyRequestsPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="settings" element={<ProfilePage />} />
       </Route>
 
       <Route

@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Package, InboxIcon, ShoppingBag,
-  User, LogOut, ChevronRight, X,
+  User, Settings, LogOut, ChevronRight, X,
 } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { cn } from '@/lib/utils'
@@ -13,6 +13,7 @@ const navItems = [
   { label: 'Refill Requests', href: '/pharmacy/requests', icon: InboxIcon },
   { label: 'Order History', href: '/pharmacy/orders', icon: ShoppingBag },
   { label: 'Pharmacy Profile', href: '/pharmacy/profile', icon: User },
+  { label: 'Store Settings', href: '/pharmacy/settings', icon: Settings },
 ]
 
 export interface PharmacySidebarProps {

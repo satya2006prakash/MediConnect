@@ -1,8 +1,10 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Store, FileText } from 'lucide-react'
+import { Store, FileText, Trash2, AlertTriangle, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -24,7 +26,11 @@ const profileSchema = z.object({
 type ProfileForm = z.infer<typeof profileSchema>
 
 export function ProfilePage() {
-  const { user, profile, fetchProfile, updateProfileAvatar } = useAuthStore()
+  const navigate = useNavigate()
+  const { user, profile, fetchProfile, updateProfileAvatar, signOut } = useAuthStore()
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
   const isPharmacy = profile?.role === 'pharmacy_admin'
   const isAdmin = profile?.role === 'admin'
 
@@ -242,6 +248,127 @@ export function ProfilePage() {
           </div>
         </div>
       </Card>
+
+      {/* Section 4: Danger Zone (Account Deletion) */}
+      {!isAdmin && (
+        <div className="border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 rounded-xl p-5 sm:p-6 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-semibold text-red-900 dark:text-red-300 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                Danger Zone
+              </h3>
+              <p className="text-sm text-red-700 dark:text-red-400 mt-1 max-w-xl">
+                {isPharmacy
+                  ? 'Permanently delete your pharmacy store, inventory catalog, order history, and account credentials from MediConnect.'
+                  : 'Permanently delete your patient account, medicine reminders, prescription records, and refill orders.'}
+              </p>
+            </div>
+            <Button
+              variant="danger"
+              className="shrink-0"
+              onClick={() => {
+                setConfirmText('')
+                setDeleteModalOpen(true)
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              Delete Account
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#161B22] border border-border dark:border-[#30363D] rounded-xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                <AlertTriangle className="w-5 h-5 shrink-0" />
+                <h3 className="font-semibold text-slate-900 dark:text-[#F0F6FC]">Permanently Delete Account</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+              {isPharmacy ? (
+                <>
+                  Are you absolutely sure you want to delete <strong>{pharmacy?.name || 'your pharmacy'}</strong>?
+                  All medicine inventory, patient requests, store details, and login credentials will be erased immediately.
+                </>
+              ) : (
+                <>
+                  Are you absolutely sure? This will permanently delete your account, medication schedule, prescription refills, and order records.
+                </>
+              )}
+            </p>
+
+            <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 rounded-lg text-xs text-red-800 dark:text-red-300">
+              ⚠️ <strong>Warning:</strong> This action cannot be reversed. You will be logged out immediately.
+            </div>
+
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                To confirm, please type <span className="font-mono font-bold text-red-600">DELETE</span> below:
+              </label>
+              <input
+                type="text"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="w-full px-3 py-2 text-sm border border-border dark:border-[#30363D] rounded-md bg-white dark:bg-[#0D1117] text-slate-900 dark:text-[#F0F6FC] focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2 justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={confirmText !== 'DELETE'}
+                isLoading={isDeleting}
+                onClick={async () => {
+                  if (confirmText !== 'DELETE' || !user?.id) return
+                  setIsDeleting(true)
+                  try {
+                    const res = await fetch('/api/delete-account', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ userId: user.id }),
+                    })
+                    const result = await res.json()
+                    if (!res.ok) {
+                      throw new Error(result.error || 'Failed to delete account')
+                    }
+                    toast.success('Your account has been permanently deleted.')
+                    await signOut()
+                    navigate('/', { replace: true })
+                  } catch (err: any) {
+                    toast.error(err.message || 'Failed to delete account')
+                    setIsDeleting(false)
+                  }
+                }}
+              >
+                Delete My Account
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

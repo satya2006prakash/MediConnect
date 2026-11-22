@@ -758,6 +758,67 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
       }
     }
 
+    // ── 5. Permanent Account Deletion ──
+    if (url === '/api/delete-account' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req)
+        const { userId } = body
+        if (!userId) return sendJson(res, 400, { error: 'userId is required' })
+
+        const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL
+        const secretKey = env.SUPABASE_SECRET_KEY
+        if (!supabaseUrl || !secretKey) {
+          return sendJson(res, 500, { error: 'Supabase credentials not configured' })
+        }
+
+        const admin = createClient(supabaseUrl, secretKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        })
+
+        // Protect primary admin account
+        const { data: userData, error: getUserErr } = await admin.auth.admin.getUserById(userId)
+        if (getUserErr || !userData?.user) {
+          return sendJson(res, 404, { error: 'User not found' })
+        }
+
+        if (userData.user.email?.toLowerCase() === 'satya2006prakash@gmail.com') {
+          return sendJson(res, 403, { error: 'Cannot delete primary platform administrator account' })
+        }
+
+        // Clean up pharmacy data
+        const { data: ownedPharmacies } = await admin
+          .from('pharmacies')
+          .select('id')
+          .eq('owner_id', userId)
+
+        if (ownedPharmacies && ownedPharmacies.length > 0) {
+          const pIds = ownedPharmacies.map((p) => p.id)
+          await admin.from('complaints').delete().in('against_pharmacy', pIds)
+          await admin.from('orders').delete().in('pharmacy_id', pIds)
+          await admin.from('pharmacy_inventory').delete().in('pharmacy_id', pIds)
+          await admin.from('pharmacies').delete().in('id', pIds)
+        }
+
+        // Clean up patient data
+        await admin.from('complaints').delete().eq('filed_by', userId)
+        await admin.from('orders').delete().eq('patient_id', userId)
+        await admin.from('medicines').delete().eq('user_id', userId)
+        await admin.from('notifications').delete().eq('user_id', userId)
+
+        // Delete profile and auth user
+        await admin.from('profiles').delete().eq('id', userId)
+        const { error: delAuthErr } = await admin.auth.admin.deleteUser(userId)
+        if (delAuthErr) {
+          return sendJson(res, 500, { error: delAuthErr.message })
+        }
+
+        return sendJson(res, 200, { success: true, message: 'Account permanently deleted' })
+      } catch (err: any) {
+        console.error('Error in /api/delete-account:', err)
+        return sendJson(res, 500, { error: err.message || 'Account deletion failed' })
+      }
+    }
+
     next()
   })
 }
