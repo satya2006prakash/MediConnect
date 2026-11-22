@@ -42,12 +42,23 @@ export function LoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
-    if (params.get('verified') === 'true') {
+    const isVerified = params.get('verified') === 'true'
+    const isPharmVerified = params.get('pharmacy_verified') === 'true'
+    const emailParam = params.get('email')
+
+    if (isVerified) {
       toast.success('Email verified successfully! You can now sign in.', { id: 'email-verified' })
     }
-    const emailParam = params.get('email')
     if (emailParam) {
       setValue('email', emailParam, { shouldValidate: true })
+    }
+
+    if (emailParam && (isPharmVerified || isVerified)) {
+      fetch('/api/notify-admin-pharmacy-verified', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailParam }),
+      }).catch((e) => console.warn('Could not notify admin of pharmacy verification:', e))
     }
   }, [location.search, setValue])
 
@@ -88,6 +99,13 @@ export function LoginPage() {
         const profile = useAuthStore.getState().profile
 
         if (profile?.role === 'pharmacy_admin') {
+          // Trigger admin verification notification if not already dispatched
+          fetch('/api/notify-admin-pharmacy-verified', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: authData.user.id, email: authData.user.email }),
+          }).catch((e) => console.warn('Could not notify admin:', e))
+
           // Check if pharmacy is verified
           const { data: pharmacy } = await supabase
             .from('pharmacies')

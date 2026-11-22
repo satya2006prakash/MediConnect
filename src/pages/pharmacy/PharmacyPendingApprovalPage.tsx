@@ -12,7 +12,7 @@ import type { Pharmacy } from '@/types/database'
 
 export function PharmacyPendingApprovalPage() {
   const navigate = useNavigate()
-  const { profile, signOut } = useAuthStore()
+  const { user, profile, signOut } = useAuthStore()
   const [pharmacy, setPharmacy] = useState<Pharmacy | null>(null)
   const [checking, setChecking] = useState(false)
 
@@ -47,7 +47,14 @@ export function PharmacyPendingApprovalPage() {
 
   useEffect(() => {
     checkStatus(false)
-  }, [profile?.id])
+    if (profile?.id) {
+      fetch('/api/notify-admin-pharmacy-verified', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: profile.id, email: user?.email }),
+      }).catch((e) => console.warn('Could not notify admin of pharmacy verification:', e))
+    }
+  }, [profile?.id, user?.email])
 
   const handleSignOut = async () => {
     await signOut()

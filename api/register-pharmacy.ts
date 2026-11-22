@@ -31,6 +31,7 @@ export default async function handler(req: any, res: any) {
       (u) => u.email?.toLowerCase() === normalizedEmail
     )
     let userId = existingUser?.id
+    let verifyLink = ''
 
     if (existingUser) {
       const { data: prof } = await admin
@@ -89,7 +90,7 @@ export default async function handler(req: any, res: any) {
         email: normalizedEmail,
         password,
         options: {
-          redirectTo: `${appUrl}/login?verified=true`,
+          redirectTo: `${appUrl}/login?verified=true&pharmacy_verified=true&email=${encodeURIComponent(normalizedEmail)}`,
           data: {
             role: 'pharmacy_admin',
             full_name: ownerName,
@@ -107,6 +108,9 @@ export default async function handler(req: any, res: any) {
         return sendJson(res, 400, { error: createError.message })
       }
       userId = linkData.user.id
+      if (linkData?.properties?.action_link) {
+        verifyLink = linkData.properties.action_link
+      }
     }
 
     await admin.from('profiles').upsert({
@@ -158,21 +162,26 @@ export default async function handler(req: any, res: any) {
     }
 
     const appUrl = getAppUrl(req)
-    const redirectTo = `${appUrl}/login?verified=true`
+    const redirectTo = `${appUrl}/login?verified=true&pharmacy_verified=true&email=${encodeURIComponent(normalizedEmail)}`
 
-    // Generate action verification link for pharmacy owner
-    let verifyLink = `${appUrl}/login`
-    try {
-      const { data: linkData } = await admin.auth.admin.generateLink({
-        type: 'magiclink',
-        email: normalizedEmail,
-        options: { redirectTo },
-      })
-      if (linkData?.properties?.action_link) {
-        verifyLink = linkData.properties.action_link
+    // Generate action verification link for pharmacy owner if not already created above
+    if (!verifyLink) {
+      try {
+        const { data: linkData } = await admin.auth.admin.generateLink({
+          type: 'magiclink',
+          email: normalizedEmail,
+          options: { redirectTo },
+        })
+        if (linkData?.properties?.action_link) {
+          verifyLink = linkData.properties.action_link
+        }
+      } catch (e) {
+        console.warn('Could not generate pharmacy magiclink:', e)
       }
-    } catch (e) {
-      console.warn('Could not generate pharmacy magiclink:', e)
+    }
+
+    if (!verifyLink) {
+      verifyLink = `${appUrl}/login`
     }
 
     if (verifyLink.includes('localhost') && appUrl.includes('mediconnect-sp.vercel.app')) {
@@ -230,40 +239,6 @@ export default async function handler(req: any, res: any) {
       })
     } catch (err: any) {
       console.warn('Could not dispatch pharmacy registration email:', err?.message)
-    }
-
-    // 2. Alert admin of new pending registration
-    try {
-      await sendEmail({
-        to: 'satya2006prakash@gmail.com',
-        subject: `[Action Required] New Pharmacy Registration: ${pharmacyName}`,
-        html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
-          <div style="text-align: center; margin-bottom: 24px;">
-            <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect Admin</h2>
-            <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">Pharmacy Registry Verification Request</p>
-          </div>
-          <div style="border-top: 1px solid #e5eaf0; padding-top: 20px;">
-            <h3 style="color: #182230; font-size: 18px; margin-top: 0;">New Pharmacy Awaiting Review</h3>
-            <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 16px 0;">
-              <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Pharmacy:</strong> ${pharmacyName}</p>
-              <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Owner:</strong> ${ownerName}</p>
-              <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Drug License:</strong> ${licenseNumber}</p>
-              <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Email:</strong> ${normalizedEmail}</p>
-              <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Phone:</strong> ${phone || '—'}</p>
-              <p style="margin: 0; font-size: 14px; color: #1E293B;"><strong>Address:</strong> ${address || ''}, ${city || ''} (${pincode || ''})</p>
-            </div>
-            <div style="text-align: center; margin: 24px 0;">
-              <a href="${appUrl}/admin/pharmacies" style="background-color: #2457A7; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
-                Review in Pharmacy Registry &rarr;
-              </a>
-            </div>
-          </div>
-        </div>
-      `,
-      })
-    } catch (err: any) {
-      console.warn('Could not dispatch admin alert email:', err?.message)
     }
 
     return sendJson(res, 200, {
