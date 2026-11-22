@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Mail } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
@@ -30,6 +30,7 @@ export function PatientRegisterPage() {
   const navigate = useNavigate()
   const { setUser, setSession, fetchProfile } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null)
   const [duplicateModal, setDuplicateModal] = useState<{
     isOpen: boolean
     email: string
@@ -69,22 +70,8 @@ export function PatientRegisterPage() {
       const result = await res.json()
 
       if (res.ok && result.success) {
-        // Automatically sign in the user (email was auto-confirmed on server)
-        const { data: loginData } = await supabase.auth.signInWithPassword({
-          email: data.email,
-          password: data.password,
-        })
-
-        if (loginData?.session && loginData?.user) {
-          setUser(loginData.user)
-          setSession(loginData.session)
-          await fetchProfile(loginData.user.id)
-          toast.success('Account created! Welcome to MediConnect.')
-          navigate('/app/dashboard', { replace: true })
-        } else {
-          toast.success('Account created! Please sign in.')
-          navigate('/login', { replace: true })
-        }
+        setVerificationEmail(data.email)
+        toast.success('Registration successful! Please check your Gmail to verify your account.')
         return
       }
 
@@ -187,10 +174,46 @@ export function PatientRegisterPage() {
         </div>
 
         <div className="bg-white dark:bg-[#161B22] border border-border dark:border-[#30363D] rounded-xl shadow-xs p-6">
-          <div className="mb-6">
-            <h1 className="text-xl font-semibold text-slate-900 dark:text-[#F0F6FC]">Create patient account</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Start managing your medicines today</p>
-          </div>
+          {verificationEmail ? (
+            <div className="text-center py-4 space-y-4">
+              <div className="w-14 h-14 bg-blue-50 dark:bg-blue-950/40 text-[#2457A7] rounded-full flex items-center justify-center mx-auto">
+                <Mail className="w-7 h-7" />
+              </div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-[#F0F6FC]">
+                Check your Gmail inbox
+              </h2>
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                We've sent an authentication verification link to <strong className="text-slate-900 dark:text-white">{verificationEmail}</strong>.
+              </p>
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-xs text-slate-500 dark:text-slate-400 text-left space-y-1.5 border border-slate-200 dark:border-slate-700/60">
+                <p className="font-semibold text-slate-700 dark:text-slate-200">How to activate your account:</p>
+                <p>1. Open your Gmail application or webmail.</p>
+                <p>2. Look for the email: <em>"Confirm your MediConnect Account – Verify Your Email"</em>.</p>
+                <p>3. Click the <strong>"Verify Email &amp; Activate Account"</strong> button.</p>
+              </div>
+              <div className="pt-2 space-y-2">
+                <Button
+                  variant="primary"
+                  className="w-full"
+                  onClick={() => navigate(`/login?email=${encodeURIComponent(verificationEmail)}`)}
+                >
+                  Go to Sign In
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setVerificationEmail(null)}
+                  className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                >
+                  Use a different email address
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="mb-6">
+                <h1 className="text-xl font-semibold text-slate-900 dark:text-[#F0F6FC]">Create patient account</h1>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Start managing your medicines today</p>
+              </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
@@ -262,6 +285,8 @@ export function PatientRegisterPage() {
               Sign in
             </Link>
           </p>
+            </>
+          )}
         </div>
 
         <p className="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">

@@ -36,24 +36,37 @@ export default async function handler(req: any, res: any) {
       })
     }
 
-    // 2. Create user with email_confirm = true (bypasses Supabase email confirmation rate limits)
-    const { data: newUser, error: createErr } = await admin.auth.admin.createUser({
+    const appUrl = getAppUrl(req)
+    const redirectTo = `${appUrl}/login?verified=true`
+
+    // 2. Generate Supabase Signup Verification Auth Link (creates user & returns action_link)
+    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+      type: 'signup',
       email: normalizedEmail,
       password,
-      email_confirm: true,
-      user_metadata: {
-        role: 'patient',
-        full_name: fullName,
-        phone: phone || null,
+      options: {
+        redirectTo,
+        data: {
+          role: 'patient',
+          full_name: fullName,
+          phone: phone || null,
+        },
       },
     })
 
-    if (createErr) {
-      console.error('Error creating patient:', createErr)
-      return sendJson(res, 400, { error: createErr.message })
+    if (linkErr) {
+      console.error('Error generating patient signup link:', linkErr)
+      return sendJson(res, 400, { error: linkErr.message })
     }
 
-    const userId = newUser.user.id
+    const userId = linkData.user.id
+    let verifyLink = linkData?.properties?.action_link || `${appUrl}/login`
+
+    // Ensure redirect in verification link points to production when deployed
+    if (verifyLink.includes('localhost') && appUrl.includes('mediconnect-sp.vercel.app')) {
+      verifyLink = verifyLink.replaceAll('http://localhost:5173', appUrl)
+      verifyLink = verifyLink.replaceAll('localhost%3A5173', 'mediconnect-sp.vercel.app')
+    }
 
     // 3. Upsert profile record
     await admin.from('profiles').upsert({
@@ -63,46 +76,43 @@ export default async function handler(req: any, res: any) {
       phone: phone || null,
     })
 
-    const appUrl = getAppUrl(req)
-
-    // 4. Send Welcome Confirmation Email to Patient
+    // 4. Dispatch Email Verification Link to Patient's Gmail
     sendEmail({
       to: normalizedEmail,
-      subject: 'Welcome to MediConnect – Registration Successful! 🎉',
+      subject: 'Confirm your MediConnect Account – Verify Your Email ✉️',
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
           <div style="text-align: center; margin-bottom: 24px;">
             <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect</h2>
-            <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">Smart Medicine Reordering & Healthcare Management</p>
+            <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">Smart Medicine Reordering &amp; Healthcare Management</p>
           </div>
           <div style="border-top: 1px solid #e5eaf0; padding-top: 20px;">
             <h3 style="color: #182230; font-size: 18px; margin-top: 0;">Welcome to MediConnect, ${fullName}! 👋</h3>
             <p style="color: #475467; font-size: 15px; line-height: 1.6;">
-              Thank you for registering on <strong>MediConnect</strong>. Your patient account has been created successfully and is ready to use.
+              Thank you for registering on MediConnect. To verify your email address and activate your account, please click the button below:
             </p>
-            <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-              <p style="margin: 0 0 8px 0; font-weight: 600; color: #1E293B; font-size: 14px;">Here is what you can do with your account:</p>
-              <ul style="margin: 0; padding-left: 20px; color: #475467; font-size: 14px; line-height: 1.6;">
-                <li>Search &amp; discover verified local pharmacies in your area</li>
-                <li>Order medicines online &amp; schedule recurring prescription refills</li>
-                <li>Track dosage schedules &amp; never run out of vital medications</li>
-              </ul>
-            </div>
             <div style="text-align: center; margin: 28px 0;">
-              <a href="${appUrl}/login" style="background-color: #2457A7; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
-                Sign In to Your Account
+              <a href="${verifyLink}" style="background-color: #2457A7; color: #ffffff; text-decoration: none; padding: 13px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
+                Verify Email &amp; Activate Account
               </a>
             </div>
+            <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px; margin: 20px 0;">
+              <p style="margin: 0; color: #667085; font-size: 12px; line-height: 1.5; word-break: break-all;">
+                If the button doesn't work, copy and paste this link in your browser:<br/>
+                <a href="${verifyLink}" style="color: #2457A7;">${verifyLink}</a>
+              </p>
+            </div>
             <p style="color: #667085; font-size: 13px; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 24px;">
-              If you have any questions or need support, reply to this email or reach us at <a href="mailto:satya2006prakash@gmail.com" style="color: #2457A7;">satya2006prakash@gmail.com</a>.
+              If you did not create an account on MediConnect, you can safely ignore this email.
             </p>
           </div>
         </div>
       `,
-    }).catch((err) => console.warn('Could not dispatch patient registration welcome email:', err.message))
+    }).catch((err) => console.warn('Could not dispatch patient email verification link:', err.message))
 
     return sendJson(res, 200, {
       success: true,
+      requiresVerification: true,
       userId,
       email: normalizedEmail,
     })

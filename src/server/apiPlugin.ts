@@ -240,14 +240,24 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           })
         }
 
-        const { data: newUser, error: createErr } = await admin.auth.admin.createUser({
+        const origin =
+          (req.headers.origin && !req.headers.origin.includes('localhost') ? req.headers.origin : null) ||
+          (req.headers.referer && !req.headers.referer.includes('localhost') ? new URL(req.headers.referer).origin : null) ||
+          'https://mediconnect-sp.vercel.app'
+        const redirectTo = `${origin}/login?verified=true`
+
+        // Generate Supabase Signup Verification Link
+        const { data: linkData, error: createErr } = await admin.auth.admin.generateLink({
+          type: 'signup',
           email: normalizedEmail,
           password,
-          email_confirm: true,
-          user_metadata: {
-            role: 'patient',
-            full_name: fullName,
-            phone: phone || null,
+          options: {
+            redirectTo,
+            data: {
+              role: 'patient',
+              full_name: fullName,
+              phone: phone || null,
+            },
           },
         })
 
@@ -255,22 +265,25 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           return sendJson(res, 400, { error: createErr.message })
         }
 
+        const userId = linkData.user.id
+        let verifyLink = linkData?.properties?.action_link || `${origin}/login`
+
+        if (verifyLink.includes('localhost') && origin.includes('mediconnect-sp.vercel.app')) {
+          verifyLink = verifyLink.replaceAll('http://localhost:5173', origin)
+          verifyLink = verifyLink.replaceAll('localhost%3A5173', 'mediconnect-sp.vercel.app')
+        }
+
         await admin.from('profiles').upsert({
-          id: newUser.user.id,
+          id: userId,
           role: 'patient',
           full_name: fullName,
           phone: phone || null,
         })
 
-        const origin =
-          (req.headers.origin && !req.headers.origin.includes('localhost') ? req.headers.origin : null) ||
-          (req.headers.referer && !req.headers.referer.includes('localhost') ? new URL(req.headers.referer).origin : null) ||
-          'https://mediconnect-sp.vercel.app'
-
-        // Dispatch welcome confirmation email to patient
+        // Dispatch verification link email to patient
         sendEmail(env, {
           to: normalizedEmail,
-          subject: 'Welcome to MediConnect – Registration Successful! 🎉',
+          subject: 'Confirm your MediConnect Account – Verify Your Email ✉️',
           html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
               <div style="text-align: center; margin-bottom: 24px;">
@@ -280,23 +293,21 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
               <div style="border-top: 1px solid #e5eaf0; padding-top: 20px;">
                 <h3 style="color: #182230; font-size: 18px; margin-top: 0;">Welcome to MediConnect, ${fullName}! 👋</h3>
                 <p style="color: #475467; font-size: 15px; line-height: 1.6;">
-                  Thank you for registering on <strong>MediConnect</strong>. Your patient account has been created successfully and is ready to use.
+                  Thank you for registering on MediConnect. To verify your email address and activate your account, please click the button below:
                 </p>
-                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                  <p style="margin: 0 0 8px 0; font-weight: 600; color: #1E293B; font-size: 14px;">Here is what you can do with your account:</p>
-                  <ul style="margin: 0; padding-left: 20px; color: #475467; font-size: 14px; line-height: 1.6;">
-                    <li>Search &amp; discover verified local pharmacies in your area</li>
-                    <li>Order medicines online &amp; schedule recurring prescription refills</li>
-                    <li>Track dosage schedules &amp; never run out of vital medications</li>
-                  </ul>
-                </div>
                 <div style="text-align: center; margin: 28px 0;">
-                  <a href="${origin}/login" style="background-color: #2457A7; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
-                    Sign In to Your Account
+                  <a href="${verifyLink}" style="background-color: #2457A7; color: #ffffff; text-decoration: none; padding: 13px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
+                    Verify Email &amp; Activate Account
                   </a>
                 </div>
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px; margin: 20px 0;">
+                  <p style="margin: 0; color: #667085; font-size: 12px; line-height: 1.5; word-break: break-all;">
+                    Direct verification link:<br/>
+                    <a href="${verifyLink}" style="color: #2457A7;">${verifyLink}</a>
+                  </p>
+                </div>
                 <p style="color: #667085; font-size: 13px; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 24px;">
-                  If you have any questions or need support, reply to this email or reach us at <a href="mailto:satya2006prakash@gmail.com" style="color: #2457A7;">satya2006prakash@gmail.com</a>.
+                  If you did not create an account on MediConnect, you can safely ignore this email.
                 </p>
               </div>
             </div>
@@ -305,7 +316,8 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
 
         return sendJson(res, 200, {
           success: true,
-          userId: newUser.user.id,
+          requiresVerification: true,
+          userId,
           email: normalizedEmail,
         })
       } catch (err: any) {
@@ -540,7 +552,6 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
 
           await admin.auth.admin.updateUserById(existingUser.id, {
             password,
-            email_confirm: true,
             user_metadata: {
               role: 'pharmacy_admin',
               full_name: ownerName,
@@ -553,26 +564,35 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
             },
           })
         } else {
-          const { data: newUser, error: createError } = await admin.auth.admin.createUser({
+          const origin =
+            (req.headers.origin && !req.headers.origin.includes('localhost') ? req.headers.origin : null) ||
+            (req.headers.referer && !req.headers.referer.includes('localhost') ? new URL(req.headers.referer).origin : null) ||
+            'https://mediconnect-sp.vercel.app'
+          const redirectTo = `${origin}/login?verified=true`
+
+          const { data: linkData, error: createError } = await admin.auth.admin.generateLink({
+            type: 'signup',
             email: normalizedEmail,
             password,
-            email_confirm: true,
-            user_metadata: {
-              role: 'pharmacy_admin',
-              full_name: ownerName,
-              pharmacy_name: pharmacyName,
-              phone,
-              city,
-              pincode,
-              address,
-              license_number: licenseNumber,
+            options: {
+              redirectTo,
+              data: {
+                role: 'pharmacy_admin',
+                full_name: ownerName,
+                pharmacy_name: pharmacyName,
+                phone,
+                city,
+                pincode,
+                address,
+                license_number: licenseNumber,
+              },
             },
           })
 
           if (createError) {
             return sendJson(res, 400, { error: createError.message })
           }
-          userId = newUser.user.id
+          userId = linkData.user.id
         }
 
         await admin.from('profiles').upsert({
@@ -623,10 +643,35 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           if (insErr) return sendJson(res, 500, { error: insErr.message })
         }
 
-        // 1. Notify pharmacy owner (confirmation & under review)
+        const origin =
+          (req.headers.origin && !req.headers.origin.includes('localhost') ? req.headers.origin : null) ||
+          (req.headers.referer && !req.headers.referer.includes('localhost') ? new URL(req.headers.referer).origin : null) ||
+          'https://mediconnect-sp.vercel.app'
+        const redirectTo = `${origin}/login?verified=true`
+
+        let verifyLink = `${origin}/login`
+        try {
+          const { data: linkData } = await admin.auth.admin.generateLink({
+            type: 'magiclink',
+            email: normalizedEmail,
+            options: { redirectTo },
+          })
+          if (linkData?.properties?.action_link) {
+            verifyLink = linkData.properties.action_link
+          }
+        } catch (e) {
+          console.warn('Could not generate pharmacy magiclink in apiPlugin:', e)
+        }
+
+        if (verifyLink.includes('localhost') && origin.includes('mediconnect-sp.vercel.app')) {
+          verifyLink = verifyLink.replaceAll('http://localhost:5173', origin)
+          verifyLink = verifyLink.replaceAll('localhost%3A5173', 'mediconnect-sp.vercel.app')
+        }
+
+        // 1. Notify pharmacy owner (confirmation & verification link)
         sendEmail(env, {
           to: normalizedEmail,
-          subject: `MediConnect – Pharmacy Registration Received for ${pharmacyName} 📋`,
+          subject: `Verify your Pharmacy Registration – ${pharmacyName} ✉️`,
           html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
               <div style="text-align: center; margin-bottom: 24px;">
@@ -634,11 +679,19 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
                 <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">Pharmacy Partner Network</p>
               </div>
               <div style="border-top: 1px solid #e5eaf0; padding-top: 20px;">
-                <h3 style="color: #182230; font-size: 18px; margin-top: 0;">Registration Received – Under Review 📋</h3>
+                <h3 style="color: #182230; font-size: 18px; margin-top: 0;">Registration Received – Verify Your Email 📋</h3>
                 <p style="color: #475467; font-size: 15px; line-height: 1.6;">
                   Hello <strong>${ownerName}</strong>,<br/><br/>
                   Thank you for connecting with <strong>MediConnect</strong> and registering <strong>${pharmacyName}</strong> on our platform.
                 </p>
+                <p style="color: #475467; font-size: 15px; line-height: 1.6;">
+                  Please click the button below to verify your email address and confirm your registration:
+                </p>
+                <div style="text-align: center; margin: 26px 0;">
+                  <a href="${verifyLink}" style="background-color: #2457A7; color: #ffffff; text-decoration: none; padding: 13px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
+                    Verify Email &amp; Confirm Registration
+                  </a>
+                </div>
                 <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
                   <p style="margin: 0 0 6px 0; font-weight: 600; color: #1E293B; font-size: 14px;">Submitted Store Details:</p>
                   <p style="margin: 0 0 4px 0; color: #475467; font-size: 13px;"><strong>Pharmacy:</strong> ${pharmacyName}</p>
@@ -649,6 +702,12 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
                 <p style="color: #475467; font-size: 14px; line-height: 1.6;">
                   Our compliance team is currently verifying your drug license and store credentials. As soon as your store is verified, you will receive an approval email and immediate access to your Pharmacy Management Portal.
                 </p>
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px; margin: 20px 0;">
+                  <p style="margin: 0; color: #667085; font-size: 12px; line-height: 1.5; word-break: break-all;">
+                    Direct verification link:<br/>
+                    <a href="${verifyLink}" style="color: #2457A7;">${verifyLink}</a>
+                  </p>
+                </div>
                 <p style="color: #667085; font-size: 13px; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 24px;">
                   Need help? Reach out to the administration at <a href="mailto:satya2006prakash@gmail.com" style="color: #2457A7;">satya2006prakash@gmail.com</a>.
                 </p>
@@ -658,11 +717,6 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
         }).catch((err) => console.warn('Could not dispatch pharmacy registration email:', err?.message))
 
         // 2. Alert admin of new pending registration
-        const origin =
-          (req.headers.origin && !req.headers.origin.includes('localhost') ? req.headers.origin : null) ||
-          (req.headers.referer && !req.headers.referer.includes('localhost') ? new URL(req.headers.referer).origin : null) ||
-          'https://mediconnect-sp.vercel.app'
-
         sendEmail(env, {
           to: 'satya2006prakash@gmail.com',
           subject: `[Action Required] New Pharmacy Registration: ${pharmacyName}`,
@@ -694,6 +748,7 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
 
         return sendJson(res, 200, {
           success: true,
+          requiresVerification: true,
           userId,
           email: normalizedEmail,
         })

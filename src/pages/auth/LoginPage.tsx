@@ -42,6 +42,9 @@ export function LoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
+    if (params.get('verified') === 'true') {
+      toast.success('Email verified successfully! You can now sign in.', { id: 'email-verified' })
+    }
     const emailParam = params.get('email')
     if (emailParam) {
       setValue('email', emailParam, { shouldValidate: true })
@@ -70,6 +73,8 @@ export function LoginPage() {
         console.error('Supabase sign-in error:', error)
         if (error.message.toLowerCase().includes('invalid login credentials')) {
           toast.error('Unregistered email or incorrect password. Please register below if you are new.')
+        } else if (error.message.toLowerCase().includes('email not confirmed')) {
+          toast.error('Your email has not been confirmed yet. Please check your Gmail for the authentication link.')
         } else {
           toast.error(error.message)
         }
