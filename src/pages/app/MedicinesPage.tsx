@@ -13,21 +13,35 @@ import { MedicineCard } from '@/components/ui/MedicineCard'
 import { Modal, ConfirmDialog } from '@/components/ui/Modal'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
+import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import type { Medicine } from '@/types/database'
 
 
 const schema = z.object({
-  name: z.string().min(1, 'Medicine name is required'),
-  brand: z.string().optional(),
-  dosage: z.string().optional(),
+  name: z.string().trim().min(1, 'Medicine name is required').max(100, 'Medicine name cannot exceed 100 characters'),
+  brand: z.string().trim().max(100, 'Brand name cannot exceed 100 characters').optional(),
+  dosage: z.string().trim().max(50, 'Dosage cannot exceed 50 characters').optional(),
   form: z.enum(['tablet', 'capsule', 'syrup', 'injection', 'cream', 'drops', 'other']).optional(),
-  current_quantity: z.coerce.number().min(0, 'Quantity cannot be negative'),
+  current_quantity: z.coerce
+    .number()
+    .min(0, 'Quantity cannot be negative')
+    .max(1000, 'Current quantity cannot exceed 1,000 units'),
   unit: z.string().min(1, 'Unit is required'),
-  daily_dose: z.coerce.number().min(0.1, 'Daily dose must be greater than 0'),
-  reminder_threshold: z.coerce.number().min(1, 'Reminder threshold must be at least 1 day'),
+  daily_dose: z.coerce
+    .number()
+    .min(0.5, 'Minimum daily dose is 0.5')
+    .max(50, 'Daily dose cannot exceed 50 units per day')
+    .refine(
+      (val) => Math.abs(val * 2 - Math.round(val * 2)) < 0.0001,
+      'Daily dose must be in intervals of 0.5 (e.g. 0.5, 1, 1.5, 2)'
+    ),
+  reminder_threshold: z.coerce
+    .number()
+    .min(1, 'Reminder threshold must be at least 1 day')
+    .max(90, 'Reminder threshold cannot exceed 90 days'),
   is_prescription: z.boolean().optional(),
-  notes: z.string().optional(),
+  notes: z.string().trim().max(300, 'Notes cannot exceed 300 characters').optional(),
 })
 
 interface MedicineFormValues {
@@ -92,8 +106,11 @@ export function MedicinesPage() {
   })
 
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } =
-    useForm<MedicineFormValues>({ resolver: zodResolver(schema) as any, defaultValues: { unit: 'tablet', daily_dose: 1, reminder_threshold: 7 } })
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } =
+    useForm<MedicineFormValues>({
+      resolver: zodResolver(schema) as any,
+      defaultValues: { unit: 'tablet', daily_dose: 1, reminder_threshold: 7, current_quantity: 10 },
+    })
 
   const saveMutation = useMutation({
     mutationFn: async (data: MedicineFormValues) => {
@@ -143,6 +160,7 @@ export function MedicinesPage() {
       unit: medicine.unit,
       daily_dose: medicine.daily_dose,
       reminder_threshold: medicine.reminder_threshold,
+      is_prescription: medicine.is_prescription ?? false,
       notes: medicine.notes ?? '',
     })
     setIsModalOpen(true)
@@ -150,7 +168,17 @@ export function MedicinesPage() {
 
   const openAdd = () => {
     setEditingMedicine(null)
-    reset({ unit: 'tablet', daily_dose: 1, reminder_threshold: 7 })
+    reset({
+      name: '',
+      brand: '',
+      dosage: '',
+      current_quantity: 10,
+      unit: 'tablet',
+      daily_dose: 1,
+      reminder_threshold: 7,
+      is_prescription: false,
+      notes: '',
+    })
     setIsModalOpen(true)
   }
 
@@ -224,12 +252,31 @@ export function MedicinesPage() {
       >
         <form onSubmit={handleSubmit((d) => saveMutation.mutate(d as MedicineFormValues))} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Medicine name" error={errors.name?.message} required {...register('name')} />
-            <Input label="Brand name" error={errors.brand?.message} {...register('brand')} />
+            <Input
+              label="Medicine name"
+              placeholder="e.g. Paracetamol, Metformin"
+              maxLength={100}
+              error={errors.name?.message}
+              required
+              {...register('name')}
+            />
+            <Input
+              label="Brand name"
+              placeholder="e.g. Dolo 650, Calpol"
+              maxLength={100}
+              error={errors.brand?.message}
+              {...register('brand')}
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Dosage" placeholder="e.g. 500mg" error={errors.dosage?.message} {...register('dosage')} />
+            <Input
+              label="Dosage / Strength"
+              placeholder="e.g. 500mg, 650mg, 5ml"
+              maxLength={50}
+              error={errors.dosage?.message}
+              {...register('dosage')}
+            />
             <Select
               label="Form"
               options={formOptions}
@@ -244,10 +291,20 @@ export function MedicinesPage() {
               label="Current quantity"
               type="number"
               min={0}
+              max={1000}
               step={0.5}
+              placeholder="e.g. 30"
+              hint="In stock (max 1,000)"
               error={errors.current_quantity?.message}
               required
-              {...register('current_quantity')}
+              {...register('current_quantity', {
+                valueAsNumber: true,
+                onChange: (e) => {
+                  const val = Number(e.target.value)
+                  if (val > 1000) e.target.value = '1000'
+                  if (val < 0 && e.target.value !== '') e.target.value = '0'
+                },
+              })}
             />
             <Select
               label="Unit"
@@ -256,26 +313,65 @@ export function MedicinesPage() {
               required
               {...register('unit')}
             />
-            <Input
-              label="Daily dose"
-              type="number"
-              min={0.1}
-              step={0.5}
-              hint="Units per day"
-              error={errors.daily_dose?.message}
-              required
-              {...register('daily_dose')}
-            />
+            <div>
+              <Input
+                label="Daily dose"
+                type="number"
+                min={0.5}
+                max={50}
+                step={0.5}
+                placeholder="1"
+                hint="Dose/day (max 50)"
+                error={errors.daily_dose?.message}
+                required
+                {...register('daily_dose', {
+                  valueAsNumber: true,
+                  onChange: (e) => {
+                    const val = Number(e.target.value)
+                    if (val > 50) e.target.value = '50'
+                    if (val < 0.5 && e.target.value !== '') e.target.value = '0.5'
+                  },
+                })}
+              />
+              {/* Quick Dose Flow Selector */}
+              <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                {[0.5, 1, 1.5, 2, 2.5, 3].map((dose) => (
+                  <button
+                    key={dose}
+                    type="button"
+                    onClick={() => setValue('daily_dose', dose, { shouldValidate: true })}
+                    className={cn(
+                      'px-1.5 py-0.5 text-[11px] font-semibold rounded border transition-all',
+                      Number(watch('daily_dose')) === dose
+                        ? 'bg-[#2457A7] text-white border-[#2457A7]'
+                        : 'bg-[#F0F3F7] dark:bg-[#21262D] text-[#475467] dark:text-[#8B949E] border-[#E5EAF0] dark:border-[#30363D] hover:bg-[#E5EAF0] dark:hover:bg-[#30363D]'
+                    )}
+                  >
+                    {dose}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <Input
             label="Low stock reminder threshold"
             type="number"
             min={1}
-            hint="Alert when this many days of stock remain"
+            max={90}
+            step={1}
+            placeholder="7"
+            hint="Alert when ≤ this many days of stock remain (1 to 90 days)"
             error={errors.reminder_threshold?.message}
             required
-            {...register('reminder_threshold')}
+            {...register('reminder_threshold', {
+              valueAsNumber: true,
+              onChange: (e) => {
+                const val = Number(e.target.value)
+                if (val > 90) e.target.value = '90'
+                if (val < 1 && e.target.value !== '') e.target.value = '1'
+              },
+            })}
           />
 
           <div className="flex items-center gap-2">
@@ -286,11 +382,17 @@ export function MedicinesPage() {
               {...register('is_prescription')}
             />
             <label htmlFor="is_prescription" className="text-sm text-slate-700">
-              Requires prescription
+              Requires doctor's prescription (Rx)
             </label>
           </div>
 
-          <Input label="Notes" error={errors.notes?.message} placeholder="Optional notes" {...register('notes')} />
+          <Input
+            label="Notes / Pharmacist Instructions"
+            placeholder="e.g. Take after food, sugar-free syrup preferred (max 300 chars)"
+            maxLength={300}
+            error={errors.notes?.message}
+            {...register('notes')}
+          />
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={closeModal}>Cancel</Button>

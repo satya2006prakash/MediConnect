@@ -18,12 +18,12 @@ import toast from 'react-hot-toast'
 import type { Pharmacy, PharmacyInventory } from '@/types/database'
 
 const schema = z.object({
-  medicine_name: z.string().min(1, 'Medicine name is required'),
-  brand: z.string().optional(),
+  medicine_name: z.string().trim().min(1, 'Medicine name is required').max(100, 'Name cannot exceed 100 characters'),
+  brand: z.string().trim().max(100, 'Brand cannot exceed 100 characters').optional(),
   form: z.enum(['tablet', 'capsule', 'syrup', 'injection', 'cream', 'drops', 'other']).optional(),
-  dosage: z.string().optional(),
-  price: z.coerce.number().min(0, 'Price must be positive'),
-  stock_quantity: z.coerce.number().int().min(0, 'Quantity must be positive'),
+  dosage: z.string().trim().max(50, 'Dosage cannot exceed 50 characters').optional(),
+  price: z.coerce.number().min(0, 'Price must be positive').max(100000, 'Price cannot exceed ₹1,00,000'),
+  stock_quantity: z.coerce.number().int().min(0, 'Quantity must be positive').max(50000, 'Stock cannot exceed 50,000 units'),
   is_available: z.boolean().optional(),
 })
 
@@ -201,8 +201,41 @@ export function PharmacyInventoryPage() {
             <Input label="Dosage" placeholder="e.g. 500mg" {...register('dosage')} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Price (₹)" type="number" min={0} step={0.01} error={errors.price?.message} required {...register('price')} />
-            <Input label="Stock quantity" type="number" min={0} error={errors.stock_quantity?.message} required {...register('stock_quantity')} />
+            <Input
+              label="Price (₹)"
+              type="number"
+              min={0}
+              max={100000}
+              step={0.01}
+              placeholder="e.g. 45.00"
+              error={errors.price?.message}
+              required
+              {...register('price', {
+                valueAsNumber: true,
+                onChange: (e) => {
+                  const val = Number(e.target.value)
+                  if (val > 100000) e.target.value = '100000'
+                  if (val < 0 && e.target.value !== '') e.target.value = '0'
+                },
+              })}
+            />
+            <Input
+              label="Stock quantity"
+              type="number"
+              min={0}
+              max={50000}
+              placeholder="e.g. 100"
+              error={errors.stock_quantity?.message}
+              required
+              {...register('stock_quantity', {
+                valueAsNumber: true,
+                onChange: (e) => {
+                  const val = Number(e.target.value)
+                  if (val > 50000) e.target.value = '50000'
+                  if (val < 0 && e.target.value !== '') e.target.value = '0'
+                },
+              })}
+            />
           </div>
           <div className="flex items-center gap-2">
             <input type="checkbox" id="is_available" className="w-4 h-4 rounded border-border text-primary-600" defaultChecked {...register('is_available')} />

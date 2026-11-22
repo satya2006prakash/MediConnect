@@ -194,13 +194,15 @@ export function PharmacyRequestDetailPage() {
                       label=""
                       type="number"
                       min={0}
+                      max={100000}
                       step={0.01}
                       placeholder="Unit price ₹"
                       className="w-32"
                       value={line.unit_price || ''}
                       onChange={(e) => {
+                        const val = Math.min(100000, Math.max(0, parseFloat(e.target.value) || 0))
                         const updated = [...billLines]
-                        updated[idx].unit_price = parseFloat(e.target.value) || 0
+                        updated[idx].unit_price = val
                         setBillLines(updated)
                       }}
                     />
@@ -208,8 +210,24 @@ export function PharmacyRequestDetailPage() {
                   </div>
                 ))}
                 <div className="grid grid-cols-2 gap-3 pt-2">
-                  <Input label="Delivery fee (₹)" type="number" min={0} step={0.01} value={deliveryFee || ''} onChange={(e) => setDeliveryFee(parseFloat(e.target.value) || 0)} />
-                  <Input label="Tax (₹)" type="number" min={0} step={0.01} value={tax || ''} onChange={(e) => setTax(parseFloat(e.target.value) || 0)} />
+                  <Input
+                    label="Delivery fee (₹)"
+                    type="number"
+                    min={0}
+                    max={5000}
+                    step={0.01}
+                    value={deliveryFee || ''}
+                    onChange={(e) => setDeliveryFee(Math.min(5000, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  />
+                  <Input
+                    label="Tax (₹)"
+                    type="number"
+                    min={0}
+                    max={10000}
+                    step={0.01}
+                    value={tax || ''}
+                    onChange={(e) => setTax(Math.min(10000, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  />
                 </div>
                 <div className="pt-3 border-t border-border flex items-center justify-between">
                   <span className="text-sm font-semibold text-slate-900">Total: {formatCurrency(subtotal + deliveryFee + tax)}</span>
