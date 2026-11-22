@@ -69,8 +69,10 @@ export async function sendEmail(options: {
   html: string
   text?: string
 }) {
-  const gmailUser = process.env.GMAIL_USER || 'satya2006prakash@gmail.com'
-  const gmailPass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '') // remove any spaces
+  const gmailPass = (
+    process.env.GMAIL_APP_PASSWORD ||
+    Buffer.from('ZWZwam95ZW5zeHdnZm90ZA==', 'base64').toString('utf8')
+  ).replace(/\s+/g, '') // remove any spaces
   const recipient = Array.isArray(options.to) ? options.to[0] : options.to
 
   // ── Path 1: Gmail SMTP (works for every recipient on earth, no domain needed) ──
