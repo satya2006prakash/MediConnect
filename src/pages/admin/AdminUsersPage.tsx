@@ -45,7 +45,12 @@ export function AdminUsersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: deleteTarget.id }),
       })
-      const data = await res.json()
+      let data: any = {}
+      try {
+        data = await res.json()
+      } catch {
+        throw new Error('Server returned an unexpected response. Please refresh the page and try again.')
+      }
       if (!res.ok) {
         throw new Error(data.error || 'Failed to delete user account')
       }

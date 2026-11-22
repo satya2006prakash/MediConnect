@@ -350,7 +350,12 @@ export function ProfilePage() {
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ userId: user.id }),
                     })
-                    const result = await res.json()
+                    let result: any = {}
+                    try {
+                      result = await res.json()
+                    } catch {
+                      throw new Error('Server returned an unexpected response. Please refresh and try again.')
+                    }
                     if (!res.ok) {
                       throw new Error(result.error || 'Failed to delete account')
                     }
