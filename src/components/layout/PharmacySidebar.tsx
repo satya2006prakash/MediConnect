@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Package, InboxIcon, ShoppingBag,
-  User, Settings, LogOut, ChevronRight, X,
+  User, Settings, LogOut, ChevronRight, X, MessageSquareWarning,
 } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { cn } from '@/lib/utils'
@@ -12,6 +12,7 @@ const navItems = [
   { label: 'Medicine Inventory', href: '/pharmacy/inventory', icon: Package },
   { label: 'Refill Requests', href: '/pharmacy/requests', icon: InboxIcon },
   { label: 'Order History', href: '/pharmacy/orders', icon: ShoppingBag },
+  { label: 'Support & Complaints', href: '/pharmacy/complaints', icon: MessageSquareWarning },
   { label: 'Pharmacy Profile', href: '/pharmacy/profile', icon: User },
   { label: 'Store Settings', href: '/pharmacy/settings', icon: Settings },
 ]

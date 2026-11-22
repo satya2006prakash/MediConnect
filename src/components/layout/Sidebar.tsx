@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Pill, Store, ShoppingBag,
   Bell, User, Settings, LogOut, ChevronRight, X,
+  MessageSquareWarning,
 } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { cn } from '@/lib/utils'
@@ -12,6 +13,7 @@ const navItems = [
   { label: 'My Medicines', href: '/app/medicines', icon: Pill },
   { label: 'Find Pharmacies', href: '/app/pharmacies', icon: Store },
   { label: 'My Orders', href: '/app/orders', icon: ShoppingBag },
+  { label: 'Help & Complaints', href: '/app/complaints', icon: MessageSquareWarning },
   { label: 'Notifications', href: '/app/notifications', icon: Bell },
 ]
 

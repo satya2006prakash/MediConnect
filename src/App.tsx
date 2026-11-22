@@ -35,6 +35,7 @@ import { OrdersPage } from '@/pages/app/OrdersPage'
 import { OrderDetailPage } from '@/pages/app/OrderDetailPage'
 import { NotificationsPage } from '@/pages/app/NotificationsPage'
 import { ProfilePage } from '@/pages/app/ProfilePage'
+import { PatientComplaintsPage } from '@/pages/app/PatientComplaintsPage'
 
 // Pharmacy pages
 import { PharmacyDashboard } from '@/pages/pharmacy/PharmacyDashboard'
@@ -42,6 +43,7 @@ import { PharmacyInventoryPage } from '@/pages/pharmacy/PharmacyInventoryPage'
 import { PharmacyRequestsPage } from '@/pages/pharmacy/PharmacyRequestsPage'
 import { PharmacyRequestDetailPage } from '@/pages/pharmacy/PharmacyRequestDetailPage'
 import { PharmacyPendingApprovalPage } from '@/pages/pharmacy/PharmacyPendingApprovalPage'
+import { PharmacyComplaintsPage } from '@/pages/pharmacy/PharmacyComplaintsPage'
 
 // Admin pages
 import { AdminDashboard } from '@/pages/admin/AdminDashboard'
@@ -97,6 +99,7 @@ function AppRoutes() {
         <Route path="orders" element={<OrdersPage />} />
 
         <Route path="orders/:id" element={<OrderDetailPage />} />
+        <Route path="complaints" element={<PatientComplaintsPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<ProfilePage />} />
@@ -117,6 +120,7 @@ function AppRoutes() {
         <Route path="requests" element={<PharmacyRequestsPage />} />
         <Route path="requests/:id" element={<PharmacyRequestDetailPage />} />
         <Route path="orders" element={<PharmacyRequestsPage />} />
+        <Route path="complaints" element={<PharmacyComplaintsPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<ProfilePage />} />
       </Route>
