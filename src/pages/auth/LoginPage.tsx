@@ -62,17 +62,6 @@ export function LoginPage() {
     }
   }, [location.search, setValue])
 
-  const quickCredentials = {
-    email: 'satya2006prakash@gmail.com',
-    pass: 'MediConnect@2006',
-  }
-
-  const fillAdminCredentials = () => {
-    setValue('email', quickCredentials.email, { shouldValidate: true })
-    setValue('password', quickCredentials.pass, { shouldValidate: true })
-    toast.success('Filled Admin credentials')
-  }
-
   const onSubmit = async (data: FormData) => {
     try {
       const { data: authData, error } = await supabase.auth.signInWithPassword({
@@ -182,18 +171,6 @@ export function LoginPage() {
               Sign in to Account
             </Button>
           </form>
-
-          {/* Quick Admin Access Chip */}
-          <div className="mt-4 pt-3.5 border-t border-[#E5EAF0] dark:border-[#30363D] text-center">
-            <button
-              type="button"
-              onClick={fillAdminCredentials}
-              className="w-full py-1.5 px-3 text-xs font-medium rounded-md border border-[#2457A7]/30 dark:border-[#2457A7]/40 bg-[#EEF4FC] dark:bg-[#16243B] text-[#2457A7] dark:text-[#58A6FF] hover:bg-[#E1ECFA] dark:hover:bg-[#1F3659] transition-colors flex items-center justify-center gap-2"
-            >
-              <span>🔑</span>
-              <span>Autofill Platform Admin (Satya Prakash)</span>
-            </button>
-          </div>
 
           {/* Registration Options */}
           <div className="mt-5 pt-4 border-t border-border dark:border-[#30363D] space-y-2.5">
