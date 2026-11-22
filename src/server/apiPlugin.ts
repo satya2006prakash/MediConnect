@@ -1,6 +1,7 @@
 import type { Plugin, ViteDevServer, PreviewServer } from 'vite'
 import { loadEnv } from 'vite'
 import { createClient } from '@supabase/supabase-js'
+import nodemailer from 'nodemailer'
 
 export function mediConnectApiPlugin(): Plugin {
   let env: Record<string, string> = {}
@@ -16,6 +17,84 @@ export function mediConnectApiPlugin(): Plugin {
     configurePreviewServer(server: PreviewServer) {
       attachApiRoutes(server.middlewares, env)
     },
+  }
+}
+
+async function sendEmail(
+  env: Record<string, string>,
+  options: {
+    to: string | string[]
+    subject: string
+    html: string
+    text?: string
+  }
+) {
+  const gmailUser = env.GMAIL_USER || process.env.GMAIL_USER || 'satya2006prakash@gmail.com'
+  const gmailPass = (env.GMAIL_APP_PASSWORD || process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '')
+  const recipient = Array.isArray(options.to) ? options.to[0] : options.to
+
+  // 1. Gmail SMTP (works for all recipients, no domain needed)
+  if (gmailPass) {
+    try {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: gmailUser, pass: gmailPass },
+      })
+
+      await transporter.sendMail({
+        from: `MediConnect <${gmailUser}>`,
+        to: Array.isArray(options.to) ? options.to.join(', ') : options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
+      })
+
+      console.log('[apiPlugin:sendEmail] Dispatched via Gmail SMTP to:', options.to)
+      return { success: true, method: 'gmail' }
+    } catch (gmailErr: any) {
+      console.warn('[apiPlugin:sendEmail] Gmail dispatch failed, falling back to Resend:', gmailErr?.message)
+    }
+  }
+
+  // 2. Resend API
+  try {
+    const res = await sendResendEmail(env, options)
+    console.log('[apiPlugin:sendEmail] Dispatched via Resend to:', options.to)
+    return { success: true, method: 'resend', data: res }
+  } catch (resendErr: any) {
+    console.warn('[apiPlugin:sendEmail] Resend dispatch error:', resendErr?.message)
+
+    // 3. Sandbox Sandbox Fallback
+    if (
+      resendErr?.message?.includes('testing emails to your own email address') ||
+      resendErr?.message?.includes('validation_error') ||
+      resendErr?.message?.includes('403')
+    ) {
+      console.log(`[apiPlugin:sendEmail] Resend sandbox restriction: routing email intended for ${recipient} to satya2006prakash@gmail.com`)
+      const sandboxBanner = `
+        <div style="background-color: #FEF3C7; border: 1px solid #F59E0B; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; color: #92400E; line-height: 1.5;">
+          <p style="margin: 0 0 6px 0; font-weight: 700; font-size: 14px;">⚠️ Resend Sandbox Delivery Notice</p>
+          <p style="margin: 0 0 4px 0;">This email was intended for: <strong style="color: #78350F;">${recipient}</strong></p>
+          <p style="margin: 0; font-size: 12px; color: #B45309;">
+            Because Resend uses test domain <code>onboarding@resend.dev</code>, emails are delivered to the registered admin account (<code>satya2006prakash@gmail.com</code>).
+            To deliver directly to any user's personal inbox, add a 16-character <strong>GMAIL_APP_PASSWORD</strong> in your settings.
+          </p>
+        </div>
+      `
+      try {
+        await sendResendEmail(env, {
+          to: 'satya2006prakash@gmail.com',
+          subject: `[For: ${recipient}] ${options.subject}`,
+          html: sandboxBanner + options.html,
+          text: options.text,
+        })
+        return { success: true, method: 'resend_sandbox_routed' }
+      } catch (sandboxErr: any) {
+        console.error('[apiPlugin:sendEmail] Sandbox fallback also failed:', sandboxErr?.message)
+      }
+    }
+
+    throw resendErr
   }
 }
 
@@ -183,6 +262,47 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           phone: phone || null,
         })
 
+        const origin =
+          (req.headers.origin && !req.headers.origin.includes('localhost') ? req.headers.origin : null) ||
+          (req.headers.referer && !req.headers.referer.includes('localhost') ? new URL(req.headers.referer).origin : null) ||
+          'https://mediconnect-sp.vercel.app'
+
+        // Dispatch welcome confirmation email to patient
+        sendEmail(env, {
+          to: normalizedEmail,
+          subject: 'Welcome to MediConnect – Registration Successful! 🎉',
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect</h2>
+                <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">Smart Medicine Reordering &amp; Healthcare Management</p>
+              </div>
+              <div style="border-top: 1px solid #e5eaf0; padding-top: 20px;">
+                <h3 style="color: #182230; font-size: 18px; margin-top: 0;">Welcome to MediConnect, ${fullName}! 👋</h3>
+                <p style="color: #475467; font-size: 15px; line-height: 1.6;">
+                  Thank you for registering on <strong>MediConnect</strong>. Your patient account has been created successfully and is ready to use.
+                </p>
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                  <p style="margin: 0 0 8px 0; font-weight: 600; color: #1E293B; font-size: 14px;">Here is what you can do with your account:</p>
+                  <ul style="margin: 0; padding-left: 20px; color: #475467; font-size: 14px; line-height: 1.6;">
+                    <li>Search &amp; discover verified local pharmacies in your area</li>
+                    <li>Order medicines online &amp; schedule recurring prescription refills</li>
+                    <li>Track dosage schedules &amp; never run out of vital medications</li>
+                  </ul>
+                </div>
+                <div style="text-align: center; margin: 28px 0;">
+                  <a href="${origin}/login" style="background-color: #2457A7; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
+                    Sign In to Your Account
+                  </a>
+                </div>
+                <p style="color: #667085; font-size: 13px; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 24px;">
+                  If you have any questions or need support, reply to this email or reach us at <a href="mailto:satya2006prakash@gmail.com" style="color: #2457A7;">satya2006prakash@gmail.com</a>.
+                </p>
+              </div>
+            </div>
+          `,
+        }).catch((err) => console.warn('Could not dispatch patient registration email:', err?.message))
+
         return sendJson(res, 200, {
           success: true,
           userId: newUser.user.id,
@@ -238,16 +358,15 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           recoveryLink = recoveryLink.replaceAll('localhost%3A5173', 'mediconnect-sp.vercel.app')
         }
 
-        // Dispatch via Resend — wrap in try/catch so sandbox delivery failures
-        // don't surface as errors to the user (the link itself is valid)
+        // Dispatch via sendEmail (Gmail SMTP or Resend with sandbox fallback)
         try {
-          await sendResendEmail(env, {
+          await sendEmail(env, {
             to: email,
-            subject: 'MediConnect – Reset Your Password',
+            subject: 'MediConnect – Reset Your Password 🔐',
             html: `
-              <div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
                 <div style="text-align: center; margin-bottom: 24px;">
-                  <h2 style="color: #2457A7; margin: 0; font-size: 24px;">MediConnect</h2>
+                  <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect</h2>
                   <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">Smart Medicine Reordering &amp; Healthcare Management</p>
                 </div>
                 <div style="border-top: 1px solid #e5eaf0; padding-top: 20px;">
@@ -272,10 +391,7 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
             `,
           })
         } catch (resendErr: any) {
-          // Log but do NOT surface Resend errors to the user.
-          // Resend sandbox restricts delivery to non-owner emails — that's a
-          // sender config issue, not a user error. The link is still valid.
-          console.warn('[reset-password] Resend delivery warning:', resendErr?.message)
+          console.warn('[reset-password] delivery warning:', resendErr?.message)
         }
 
         return sendJson(res, 200, { success: true, message: 'Reset email dispatched' })
@@ -285,39 +401,57 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
       }
     }
 
-    // ── 3. Pharmacy Approval Notification via Resend ──
+    // ── 3. Pharmacy Approval Notification ──
     if (url === '/api/notify-pharmacy-approval' && req.method === 'POST') {
       try {
         const body = await parseJsonBody(req)
         const { pharmacyEmail, pharmacyName } = body
         if (!pharmacyEmail) return sendJson(res, 400, { error: 'pharmacyEmail is required' })
 
-        const origin = req.headers.origin || 'http://localhost:5173'
+        const origin =
+          (req.headers.origin && !req.headers.origin.includes('localhost') ? req.headers.origin : null) ||
+          (req.headers.referer && !req.headers.referer.includes('localhost') ? new URL(req.headers.referer).origin : null) ||
+          'https://mediconnect-sp.vercel.app'
         const loginUrl = `${origin}/login`
 
-        await sendResendEmail(env, {
+        await sendEmail(env, {
           to: pharmacyEmail,
-          subject: 'MediConnect – Pharmacy Account Approved & Activated!',
+          subject: `MediConnect – Pharmacy Registration Approved! Welcome Aboard 🎉`,
           html: `
-            <div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
               <div style="text-align: center; margin-bottom: 24px;">
-                <h2 style="color: #159A91; margin: 0; font-size: 24px;">MediConnect Pharmacy Network</h2>
-                <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">Accreditation & Approval Confirmation</p>
+                <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect</h2>
+                <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">Pharmacy Partner Network Accreditation</p>
               </div>
               <div style="border-top: 1px solid #e5eaf0; padding-top: 20px;">
-                <h3 style="color: #16865B; font-size: 18px; margin-top: 0;">Congratulations! Your Pharmacy is Verified</h3>
+                <div style="text-align: center; margin-bottom: 20px;">
+                  <span style="display: inline-block; background-color: #E8F5EF; color: #16865B; padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 13px;">
+                    ✓ Registration Approved
+                  </span>
+                </div>
+                <h3 style="color: #182230; font-size: 19px; margin-top: 0; text-align: center;">Congratulations, ${pharmacyName || 'Pharmacy Partner'}! 🎉</h3>
                 <p style="color: #475467; font-size: 15px; line-height: 1.6;">
-                  Dear <strong>${pharmacyName || 'Pharmacy Partner'}</strong>,<br/><br/>
-                  Your drug license and registration details have been verified and approved by the MediConnect Administration.
+                  We are pleased to inform you that your pharmacy registration and drug license credentials have been thoroughly reviewed and <strong>approved</strong> by the MediConnect Administration.
                 </p>
                 <p style="color: #475467; font-size: 15px; line-height: 1.6;">
-                  You can now sign in to your dashboard to manage live inventory, review refill requests, and fulfill patient orders.
+                  <strong>Thank you for connecting with MediConnect!</strong> Your pharmacy is now active on our network and visible to patients in your region.
                 </p>
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                  <p style="margin: 0 0 8px 0; font-weight: 600; color: #1E293B; font-size: 14px;">Next steps on your pharmacy portal:</p>
+                  <ul style="margin: 0; padding-left: 20px; color: #475467; font-size: 13px; line-height: 1.6;">
+                    <li>Sign in using your registered credentials (${pharmacyEmail})</li>
+                    <li>Add &amp; update your available medicine inventory</li>
+                    <li>Receive and fulfill automated prescription refill orders from patients</li>
+                  </ul>
+                </div>
                 <div style="text-align: center; margin: 28px 0;">
-                  <a href="${loginUrl}" style="background-color: #159A91; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
-                    Sign In to Pharmacy Portal
+                  <a href="${loginUrl}" style="background-color: #2457A7; color: #ffffff; text-decoration: none; padding: 13px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
+                    Sign In to Pharmacy Portal &rarr;
                   </a>
                 </div>
+                <p style="color: #667085; font-size: 13px; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 24px; text-align: center;">
+                  Need help onboarding? Contact admin support anytime at <a href="mailto:satya2006prakash@gmail.com" style="color: #2457A7;">satya2006prakash@gmail.com</a>.
+                </p>
               </div>
             </div>
           `,
@@ -489,57 +623,74 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
           if (insErr) return sendJson(res, 500, { error: insErr.message })
         }
 
-        // Send registration receipt to pharmacy via Resend (fire and forget)
-        sendResendEmail(env, {
+        // 1. Notify pharmacy owner (confirmation & under review)
+        sendEmail(env, {
           to: normalizedEmail,
-          subject: 'MediConnect – Pharmacy Registration Received (Under Review)',
+          subject: `MediConnect – Pharmacy Registration Received for ${pharmacyName} 📋`,
           html: `
-            <div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
-              <h2 style="color: #2457A7; margin-top: 0;">Registration Received</h2>
-              <p style="color: #475467; font-size: 15px; line-height: 1.6;">
-                Hello <strong>${ownerName}</strong>,<br/><br/>
-                Your registration for <strong>${pharmacyName}</strong> has been received by MediConnect.
-              </p>
-              <p style="color: #475467; font-size: 14px;">
-                Our administrative compliance team is reviewing your drug license (<strong>${licenseNumber}</strong>). You will receive an approval email as soon as your store is verified.
-              </p>
-            </div>
-          `,
-        }).catch((err) => console.warn('Could not dispatch pharmacy registration email:', err.message))
-
-        // Send approval request notification to Admin via Resend
-        const origin = req.headers.origin || 'http://localhost:5173'
-        sendResendEmail(env, {
-          to: 'satya2006prakash@gmail.com',
-          subject: `MediConnect Action Required – New Pharmacy Verification: ${pharmacyName}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
               <div style="text-align: center; margin-bottom: 24px;">
-                <h2 style="color: #2457A7; margin: 0; font-size: 24px;">MediConnect Administration</h2>
-                <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">New Pharmacy Accreditation Request</p>
+                <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect</h2>
+                <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">Pharmacy Partner Network</p>
               </div>
               <div style="border-top: 1px solid #e5eaf0; padding-top: 20px;">
-                <h3 style="color: #182230; font-size: 18px; margin-top: 0;">Pending Approval: ${pharmacyName}</h3>
+                <h3 style="color: #182230; font-size: 18px; margin-top: 0;">Registration Received – Under Review 📋</h3>
                 <p style="color: #475467; font-size: 15px; line-height: 1.6;">
-                  A new pharmacy has submitted their registration and is awaiting administrative verification in the Pharmacy Registry:
+                  Hello <strong>${ownerName}</strong>,<br/><br/>
+                  Thank you for connecting with <strong>MediConnect</strong> and registering <strong>${pharmacyName}</strong> on our platform.
                 </p>
-                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                  <p style="margin: 4px 0; font-size: 14px; color: #334155;"><strong>Pharmacy Name:</strong> ${pharmacyName}</p>
-                  <p style="margin: 4px 0; font-size: 14px; color: #334155;"><strong>Owner:</strong> ${ownerName}</p>
-                  <p style="margin: 4px 0; font-size: 14px; color: #334155;"><strong>Drug License:</strong> ${licenseNumber}</p>
-                  <p style="margin: 4px 0; font-size: 14px; color: #334155;"><strong>Email:</strong> ${normalizedEmail}</p>
-                  <p style="margin: 4px 0; font-size: 14px; color: #334155;"><strong>Phone:</strong> ${phone || '—'}</p>
-                  <p style="margin: 4px 0; font-size: 14px; color: #334155;"><strong>Location:</strong> ${city || ''}, ${pincode || ''}</p>
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                  <p style="margin: 0 0 6px 0; font-weight: 600; color: #1E293B; font-size: 14px;">Submitted Store Details:</p>
+                  <p style="margin: 0 0 4px 0; color: #475467; font-size: 13px;"><strong>Pharmacy:</strong> ${pharmacyName}</p>
+                  <p style="margin: 0 0 4px 0; color: #475467; font-size: 13px;"><strong>Drug License:</strong> ${licenseNumber}</p>
+                  <p style="margin: 0 0 4px 0; color: #475467; font-size: 13px;"><strong>Location:</strong> ${city || ''} (${pincode || ''})</p>
+                  <p style="margin: 0; color: #475467; font-size: 13px;"><strong>Registered Email:</strong> ${normalizedEmail}</p>
                 </div>
-                <div style="text-align: center; margin: 28px 0;">
+                <p style="color: #475467; font-size: 14px; line-height: 1.6;">
+                  Our compliance team is currently verifying your drug license and store credentials. As soon as your store is verified, you will receive an approval email and immediate access to your Pharmacy Management Portal.
+                </p>
+                <p style="color: #667085; font-size: 13px; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 24px;">
+                  Need help? Reach out to the administration at <a href="mailto:satya2006prakash@gmail.com" style="color: #2457A7;">satya2006prakash@gmail.com</a>.
+                </p>
+              </div>
+            </div>
+          `,
+        }).catch((err) => console.warn('Could not dispatch pharmacy registration email:', err?.message))
+
+        // 2. Alert admin of new pending registration
+        const origin =
+          (req.headers.origin && !req.headers.origin.includes('localhost') ? req.headers.origin : null) ||
+          (req.headers.referer && !req.headers.referer.includes('localhost') ? new URL(req.headers.referer).origin : null) ||
+          'https://mediconnect-sp.vercel.app'
+
+        sendEmail(env, {
+          to: 'satya2006prakash@gmail.com',
+          subject: `[Action Required] New Pharmacy Registration: ${pharmacyName}`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect Admin</h2>
+                <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">Pharmacy Registry Verification Request</p>
+              </div>
+              <div style="border-top: 1px solid #e5eaf0; padding-top: 20px;">
+                <h3 style="color: #182230; font-size: 18px; margin-top: 0;">New Pharmacy Awaiting Review</h3>
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                  <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Pharmacy:</strong> ${pharmacyName}</p>
+                  <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Owner:</strong> ${ownerName}</p>
+                  <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Drug License:</strong> ${licenseNumber}</p>
+                  <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Email:</strong> ${normalizedEmail}</p>
+                  <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Phone:</strong> ${phone || '—'}</p>
+                  <p style="margin: 0; font-size: 14px; color: #1E293B;"><strong>Address:</strong> ${address || ''}, ${city || ''} (${pincode || ''})</p>
+                </div>
+                <div style="text-align: center; margin: 24px 0;">
                   <a href="${origin}/admin/pharmacies" style="background-color: #2457A7; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
-                    Review in Pharmacy Registry
+                    Review in Pharmacy Registry &rarr;
                   </a>
                 </div>
               </div>
             </div>
           `,
-        }).catch((err) => console.warn('Could not dispatch admin approval notification email:', err.message))
+        }).catch((err) => console.warn('Could not dispatch admin alert email:', err?.message))
 
         return sendJson(res, 200, {
           success: true,

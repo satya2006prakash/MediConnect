@@ -93,7 +93,7 @@ export function AdminPharmaciesPage() {
         .eq('id', id)
       if (error) throw error
 
-      // If approved and pharmacy has an email, dispatch approval notification via Resend
+      // If approved and pharmacy has an email, dispatch approval notification
       if (action === 'verified' && pharmacyEmail) {
         try {
           const res = await fetch('/api/notify-pharmacy-approval', {
@@ -105,10 +105,7 @@ export function AdminPharmaciesPage() {
             }),
           })
           if (!res.ok) {
-            // Fallback to Supabase reset email if local API is not available
-            await supabase.auth.resetPasswordForEmail(pharmacyEmail, {
-              redirectTo: `${window.location.origin}/login`,
-            })
+            console.warn('Approval email endpoint returned non-200 status')
           }
         } catch (e) {
           console.warn('Could not send approval email:', e)

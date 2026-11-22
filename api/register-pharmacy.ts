@@ -1,4 +1,4 @@
-import { getSupabaseAdmin, sendResendEmail, getAppUrl, sendJson, parseBody } from './_utils'
+import { getSupabaseAdmin, sendEmail, getAppUrl, sendJson, parseBody } from './_utils'
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -156,43 +156,66 @@ export default async function handler(req: any, res: any) {
 
     const appUrl = getAppUrl(req)
 
-    // Notify pharmacy owner via Resend (fire and forget)
-    sendResendEmail({
+    // 1. Notify pharmacy owner (confirmation & under review)
+    sendEmail({
       to: normalizedEmail,
-      subject: 'MediConnect – Pharmacy Registration Received (Under Review)',
+      subject: `MediConnect – Pharmacy Registration Received for ${pharmacyName} 📋`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
-          <h2 style="color: #2457A7; margin-top: 0;">Registration Received</h2>
-          <p style="color: #475467; font-size: 15px; line-height: 1.6;">
-            Hello <strong>${ownerName}</strong>,<br/><br/>
-            Your registration for <strong>${pharmacyName}</strong> has been received by MediConnect.
-          </p>
-          <p style="color: #475467; font-size: 14px;">
-            Our compliance team is reviewing your drug license (<strong>${licenseNumber}</strong>). You will receive an approval email as soon as your store is verified.
-          </p>
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect</h2>
+            <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">Pharmacy Partner Network</p>
+          </div>
+          <div style="border-top: 1px solid #e5eaf0; padding-top: 20px;">
+            <h3 style="color: #182230; font-size: 18px; margin-top: 0;">Registration Received – Under Review 📋</h3>
+            <p style="color: #475467; font-size: 15px; line-height: 1.6;">
+              Hello <strong>${ownerName}</strong>,<br/><br/>
+              Thank you for connecting with <strong>MediConnect</strong> and registering <strong>${pharmacyName}</strong> on our platform.
+            </p>
+            <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+              <p style="margin: 0 0 6px 0; font-weight: 600; color: #1E293B; font-size: 14px;">Submitted Store Details:</p>
+              <p style="margin: 0 0 4px 0; color: #475467; font-size: 13px;"><strong>Pharmacy:</strong> ${pharmacyName}</p>
+              <p style="margin: 0 0 4px 0; color: #475467; font-size: 13px;"><strong>Drug License:</strong> ${licenseNumber}</p>
+              <p style="margin: 0 0 4px 0; color: #475467; font-size: 13px;"><strong>Location:</strong> ${city || ''} (${pincode || ''})</p>
+              <p style="margin: 0; color: #475467; font-size: 13px;"><strong>Registered Email:</strong> ${normalizedEmail}</p>
+            </div>
+            <p style="color: #475467; font-size: 14px; line-height: 1.6;">
+              Our compliance team is currently verifying your drug license and store credentials. As soon as your store is verified, you will receive an approval email and immediate access to your Pharmacy Management Portal.
+            </p>
+            <p style="color: #667085; font-size: 13px; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 24px;">
+              Need help? Reach out to the administration at <a href="mailto:satya2006prakash@gmail.com" style="color: #2457A7;">satya2006prakash@gmail.com</a>.
+            </p>
+          </div>
         </div>
       `,
     }).catch((err) => console.warn('Could not dispatch pharmacy registration email:', err.message))
 
-    // Alert admin
-    sendResendEmail({
+    // 2. Alert admin of new pending registration
+    sendEmail({
       to: 'satya2006prakash@gmail.com',
-      subject: `MediConnect Action Required – New Pharmacy Verification: ${pharmacyName}`,
+      subject: `[Action Required] New Pharmacy Registration: ${pharmacyName}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
-          <h2 style="color: #2457A7; margin-top: 0;">New Pharmacy Awaiting Approval</h2>
-          <p style="font-size: 15px; color: #475467;">
-            <strong>Pharmacy:</strong> ${pharmacyName}<br/>
-            <strong>Owner:</strong> ${ownerName}<br/>
-            <strong>License:</strong> ${licenseNumber}<br/>
-            <strong>Email:</strong> ${normalizedEmail}<br/>
-            <strong>City:</strong> ${city || ''} (${pincode || ''})
-          </p>
-          <p style="margin-top: 24px;">
-            <a href="${appUrl}/admin/pharmacies" style="background:#2457A7; color:#fff; text-decoration:none; padding:10px 20px; border-radius:6px; font-weight:600;">
-              Review in Pharmacy Registry
-            </a>
-          </p>
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5eaf0; border-radius: 12px; background: #ffffff;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h2 style="color: #2457A7; margin: 0; font-size: 24px; font-weight: 700;">MediConnect Admin</h2>
+            <p style="color: #667085; font-size: 13px; margin: 4px 0 0 0;">Pharmacy Registry Verification Request</p>
+          </div>
+          <div style="border-top: 1px solid #e5eaf0; padding-top: 20px;">
+            <h3 style="color: #182230; font-size: 18px; margin-top: 0;">New Pharmacy Awaiting Review</h3>
+            <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin: 16px 0;">
+              <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Pharmacy:</strong> ${pharmacyName}</p>
+              <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Owner:</strong> ${ownerName}</p>
+              <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Drug License:</strong> ${licenseNumber}</p>
+              <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Email:</strong> ${normalizedEmail}</p>
+              <p style="margin: 0 0 6px 0; font-size: 14px; color: #1E293B;"><strong>Phone:</strong> ${phone || '—'}</p>
+              <p style="margin: 0; font-size: 14px; color: #1E293B;"><strong>Address:</strong> ${address || ''}, ${city || ''} (${pincode || ''})</p>
+            </div>
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="${appUrl}/admin/pharmacies" style="background-color: #2457A7; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
+                Review in Pharmacy Registry &rarr;
+              </a>
+            </div>
+          </div>
         </div>
       `,
     }).catch((err) => console.warn('Could not dispatch admin alert email:', err.message))

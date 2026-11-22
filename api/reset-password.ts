@@ -1,4 +1,4 @@
-import { getSupabaseAdmin, sendResendEmail, getAppUrl, sendJson, parseBody } from './_utils'
+import { getSupabaseAdmin, sendEmail, getAppUrl, sendJson, parseBody } from './_utils'
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -36,9 +36,9 @@ export default async function handler(req: any, res: any) {
       recoveryLink = recoveryLink.replaceAll('localhost%3A5173', 'mediconnect-sp.vercel.app')
     }
 
-    // Try sending via Resend — wrap so sandbox/delivery errors don't surface to user
+    // Send email (via Gmail SMTP if configured, or Resend with sandbox fallback)
     try {
-      await sendResendEmail({
+      await sendEmail({
         to: email,
         subject: 'MediConnect – Reset Your Password',
         html: `
