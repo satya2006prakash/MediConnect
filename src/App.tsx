@@ -46,6 +46,7 @@ import { PharmacyOrdersPage } from '@/pages/pharmacy/PharmacyOrdersPage'
 import { PharmacyRequestDetailPage } from '@/pages/pharmacy/PharmacyRequestDetailPage'
 import { PharmacyPendingApprovalPage } from '@/pages/pharmacy/PharmacyPendingApprovalPage'
 import { PharmacyComplaintsPage } from '@/pages/pharmacy/PharmacyComplaintsPage'
+import { PharmacyNotificationsPage } from '@/pages/pharmacy/PharmacyNotificationsPage'
 
 // Admin pages
 import { AdminDashboard } from '@/pages/admin/AdminDashboard'
@@ -126,6 +127,7 @@ function AppRoutes() {
         <Route path="requests/:id" element={<PharmacyRequestDetailPage />} />
         <Route path="orders" element={<PharmacyOrdersPage />} />
         <Route path="complaints" element={<PharmacyComplaintsPage />} />
+        <Route path="notifications" element={<PharmacyNotificationsPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<ProfilePage />} />
       </Route>

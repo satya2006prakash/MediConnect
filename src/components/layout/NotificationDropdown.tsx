@@ -386,11 +386,11 @@ export function NotificationDropdown({ role, className }: NotificationDropdownPr
             )}
             {role === 'pharmacy_admin' && (
               <Link
-                to="/pharmacy/requests"
+                to="/pharmacy/notifications"
                 onClick={() => setIsOpen(false)}
                 className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline inline-flex items-center gap-1"
               >
-                Go to Refill Requests
+                View all notifications
                 <ArrowRight className="w-3 h-3" />
               </Link>
             )}

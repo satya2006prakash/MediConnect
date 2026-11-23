@@ -29,8 +29,8 @@ export function AppHeader({
 
   const role = profile?.role ?? 'patient'
 
-  // Admin unread count for the bell badge
-  const { data: adminUnreadCount = 0 } = useQuery({
+  // Unread count for the bell badge (admin & pharmacy)
+  const { data: headerUnreadCount = 0 } = useQuery({
     queryKey: ['header-unread-count', profile?.id],
     queryFn: async () => {
       if (!profile?.id) return 0
@@ -46,7 +46,7 @@ export function AppHeader({
         return 0
       }
     },
-    enabled: role === 'admin' && !!profile?.id,
+    enabled: (role === 'admin' || role === 'pharmacy_admin') && !!profile?.id,
     refetchInterval: 15000,
   })
 
@@ -62,7 +62,7 @@ export function AppHeader({
       label: 'Pharmacy Portal',
       variant: 'secondary' as const,
       icon: <Store className="w-3.5 h-3.5" />,
-      notificationsPath: '/pharmacy/requests',
+      notificationsPath: '/pharmacy/notifications',
       profilePath: '/pharmacy/profile',
     },
     admin: {
@@ -129,15 +129,15 @@ export function AppHeader({
         <ThemeToggle size="sm" />
 
         {/* Bell Notifications */}
-        {role === 'admin' ? (
+        {role === 'admin' || role === 'pharmacy_admin' ? (
           <Link
-            to="/admin/notifications"
+            to={role === 'admin' ? '/admin/notifications' : '/pharmacy/notifications'}
             className="relative p-2 rounded-md text-[#667085] dark:text-[#8B949E] hover:text-[#182230] dark:hover:text-[#F0F6FC] hover:bg-[#F0F3F7] dark:hover:bg-[#21262D] transition-colors"
             title="Notifications & System Alerts"
             aria-label="View all notifications"
           >
             <Bell className="w-4 h-4" />
-            {adminUnreadCount > 0 && (
+            {headerUnreadCount > 0 && (
               <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D64545] ring-2 ring-white dark:ring-[#161B22]" />
