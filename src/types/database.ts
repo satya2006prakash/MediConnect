@@ -31,6 +31,8 @@ export type NotificationType =
   | 'new_request'
   | 'pharmacy_verified'
   | 'complaint_update'
+  | 'broadcast'
+  | 'system_alert'
 
 // ─── Row types ───────────────────────────────────────────────
 

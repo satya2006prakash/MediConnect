@@ -54,6 +54,7 @@ import { AdminPharmaciesPage } from '@/pages/admin/AdminPharmaciesPage'
 import { AdminOrdersPage } from '@/pages/admin/AdminOrdersPage'
 import { AdminComplaintsPage } from '@/pages/admin/AdminComplaintsPage'
 import { AdminSettingsPage } from '@/pages/admin/AdminSettingsPage'
+import { AdminBroadcastPage } from '@/pages/admin/AdminBroadcastPage'
 
 
 const queryClient = new QueryClient({
@@ -152,6 +153,7 @@ function AppRoutes() {
         <Route path="pharmacies" element={<AdminPharmaciesPage />} />
         <Route path="orders" element={<AdminOrdersPage />} />
         <Route path="complaints" element={<AdminComplaintsPage />} />
+        <Route path="broadcast" element={<AdminBroadcastPage />} />
         <Route path="settings" element={<AdminSettingsPage />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>

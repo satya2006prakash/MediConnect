@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { Badge } from '@/components/ui/StatusBadge'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { NotificationDropdown } from '@/components/layout/NotificationDropdown'
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications'
 import { cn } from '@/lib/utils'
 
 export interface AppHeaderProps {
@@ -20,6 +21,9 @@ export function AppHeader({
   className,
 }: AppHeaderProps) {
   const { profile } = useAuthStore()
+
+  // Activate real-time in-app toasts, sound chimes, and PWA system notifications
+  useRealtimeNotifications()
 
   const role = profile?.role ?? 'patient'
 

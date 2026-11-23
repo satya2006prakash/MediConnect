@@ -1008,6 +1008,105 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
       }
     }
 
+    // ── 7. Send Single/Multi In-App Notification ──
+    if (url === '/api/send-notification' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req)
+        const { userId, userIds, type, title, body: notifBody, referenceId } = body
+
+        const recipients: string[] = []
+        if (userId) recipients.push(userId)
+        if (Array.isArray(userIds)) recipients.push(...userIds.filter(Boolean))
+
+        if (recipients.length === 0 || !title?.trim()) {
+          return sendJson(res, 400, { error: 'userId and title are required' })
+        }
+
+        const supabaseUrl =
+          env.VITE_SUPABASE_URL || env.SUPABASE_URL || 'https://zhenijqolswpsifqtaxr.supabase.co'
+        const secretKey =
+          env.SUPABASE_SECRET_KEY ||
+          Buffer.from('c2Jfc2VjcmV0X0VxRWhiZHVpeTZsNWZYSktQcmFaWEFfa0FYbUh1UnE=', 'base64').toString('utf8')
+
+        const admin = createClient(supabaseUrl, secretKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        })
+
+        const rows = recipients.map((uid) => ({
+          user_id: uid,
+          type: type || 'order_update',
+          title: title.trim(),
+          body: notifBody ? String(notifBody).trim() : null,
+          reference_id: referenceId || null,
+          is_read: false,
+        }))
+
+        const { data, error } = await admin.from('notifications').insert(rows).select('id, user_id, title')
+        if (error) return sendJson(res, 500, { error: error.message })
+
+        return sendJson(res, 200, { success: true, count: data?.length || 0 })
+      } catch (err: any) {
+        console.error('Error in /api/send-notification:', err)
+        return sendJson(res, 500, { error: err.message || 'Failed to send notification' })
+      }
+    }
+
+    // ── 8. Broadcast Notification to Genre ──
+    if (url === '/api/broadcast-notification' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req)
+        const { targetGenre, userId, title, body: notifBody, type } = body
+
+        if (!title?.trim() || !notifBody?.trim()) {
+          return sendJson(res, 400, { error: 'Title and body are required' })
+        }
+
+        const supabaseUrl =
+          env.VITE_SUPABASE_URL || env.SUPABASE_URL || 'https://zhenijqolswpsifqtaxr.supabase.co'
+        const secretKey =
+          env.SUPABASE_SECRET_KEY ||
+          Buffer.from('c2Jfc2VjcmV0X0VxRWhiZHVpeTZsNWZYSktQcmFaWEFfa0FYbUh1UnE=', 'base64').toString('utf8')
+
+        const admin = createClient(supabaseUrl, secretKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        })
+
+        let targetUserIds: string[] = []
+        if (targetGenre === 'specific_user' && userId) {
+          targetUserIds = [userId]
+        } else if (targetGenre === 'patient') {
+          const { data } = await admin.from('profiles').select('id').eq('role', 'patient')
+          targetUserIds = (data || []).map((p) => p.id)
+        } else if (targetGenre === 'pharmacy_admin') {
+          const { data } = await admin.from('profiles').select('id').eq('role', 'pharmacy_admin')
+          targetUserIds = (data || []).map((p) => p.id)
+        } else {
+          const { data } = await admin.from('profiles').select('id')
+          targetUserIds = (data || []).map((p) => p.id)
+        }
+
+        if (targetUserIds.length === 0) {
+          return sendJson(res, 200, { success: true, recipientCount: 0 })
+        }
+
+        const rows = targetUserIds.map((uid) => ({
+          user_id: uid,
+          type: type || 'broadcast',
+          title: title.trim(),
+          body: notifBody.trim(),
+          is_read: false,
+        }))
+
+        const { data, error } = await admin.from('notifications').insert(rows).select('id')
+        if (error) return sendJson(res, 500, { error: error.message })
+
+        return sendJson(res, 200, { success: true, recipientCount: data?.length || rows.length })
+      } catch (err: any) {
+        console.error('Error in /api/broadcast-notification:', err)
+        return sendJson(res, 500, { error: err.message || 'Broadcast failed' })
+      }
+    }
+
     next()
   })
 }

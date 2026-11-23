@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Building2, ShoppingBag,
-  MessageSquare, Settings, LogOut, ChevronRight, X,
+  MessageSquare, Settings, LogOut, ChevronRight, X, Send,
 } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { cn } from '@/lib/utils'
@@ -13,6 +13,7 @@ const navItems = [
   { label: 'Pharmacy Registry', href: '/admin/pharmacies', icon: Building2 },
   { label: 'Global Orders', href: '/admin/orders', icon: ShoppingBag },
   { label: 'Complaints', href: '/admin/complaints', icon: MessageSquare },
+  { label: 'Push & Broadcast', href: '/admin/broadcast', icon: Send },
   { label: 'Platform Settings', href: '/admin/settings', icon: Settings },
 ]
 

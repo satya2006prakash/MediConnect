@@ -8,11 +8,12 @@ import { OrderTimeline } from '@/components/ui/OrderTimeline'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { formatDate, formatCurrency, parseBillMetadata } from '@/lib/utils'
+import { sendAppNotification } from '@/lib/notifications'
 import toast from 'react-hot-toast'
 import type { Order, Bill, BillItem, OrderItem } from '@/types/database'
 
 type FullOrder = Order & {
-  pharmacy: { name: string; city: string; phone: string; address: string }
+  pharmacy: { name: string; city: string; phone: string; address: string; owner_id?: string }
   items: OrderItem[]
   bill: (Bill & { items: BillItem[] }) | null
 }
@@ -30,7 +31,7 @@ export function OrderDetailPage() {
           .from('orders')
           .select(`
             *,
-            pharmacy:pharmacies(name, city, phone, address),
+            pharmacy:pharmacies(name, city, phone, address, owner_id),
             items:order_items(*),
             bill:bills(*, items:bill_items(*))
           `)
@@ -57,6 +58,19 @@ export function OrderDetailPage() {
       // Update order status
       const newOrderStatus = action === 'approved' ? 'bill_approved' : 'rejected'
       await supabase.from('orders').update({ status: newOrderStatus }).eq('id', order.id)
+
+      // Notify the dispensing pharmacy store owner
+      if (order.pharmacy?.owner_id) {
+        sendAppNotification({
+          userId: order.pharmacy.owner_id,
+          type: 'order_update',
+          title: action === 'approved' ? 'Bill Approved by Patient' : 'Bill Declined by Patient',
+          body: action === 'approved'
+            ? `Patient approved the bill for order #${order.id.slice(0, 8).toUpperCase()}. You may now prepare and dispatch the medicines.`
+            : `Patient declined the bill for order #${order.id.slice(0, 8).toUpperCase()}.`,
+          referenceId: order.id,
+        })
+      }
     },
     onSuccess: (_, action) => {
       queryClient.invalidateQueries({ queryKey: ['order', id] })

@@ -9,6 +9,7 @@ import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/FormField'
 import { formatDate, formatCurrency, parseBillMetadata, generateUniqueBillNumber, cn } from '@/lib/utils'
+import { sendAppNotification } from '@/lib/notifications'
 import toast from 'react-hot-toast'
 import type { Order, OrderItem, Bill, BillItem } from '@/types/database'
 
@@ -70,6 +71,15 @@ export function PharmacyRequestDetailPage() {
   const acceptMutation = useMutation({
     mutationFn: async () => {
       await supabase.from('orders').update({ status: 'accepted' }).eq('id', id!)
+      if (request?.patient_id) {
+        sendAppNotification({
+          userId: request.patient_id,
+          type: 'order_update',
+          title: 'Order Accepted by Pharmacy',
+          body: 'Your pharmacy accepted your medicine request and is preparing your bill.',
+          referenceId: id!,
+        })
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pharmacy-request', id] })
@@ -81,6 +91,15 @@ export function PharmacyRequestDetailPage() {
   const rejectMutation = useMutation({
     mutationFn: async () => {
       await supabase.from('orders').update({ status: 'rejected' }).eq('id', id!)
+      if (request?.patient_id) {
+        sendAppNotification({
+          userId: request.patient_id,
+          type: 'order_update',
+          title: 'Order Request Declined',
+          body: 'The pharmacy was unable to fulfill your medicine request at this time.',
+          referenceId: id!,
+        })
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pharmacy-request', id] })
@@ -143,14 +162,14 @@ export function PharmacyRequestDetailPage() {
       await supabase.from('bill_items').insert(items)
       await supabase.from('orders').update({ status: 'bill_generated' }).eq('id', id!)
 
-      // Create notification for patient
+      // Create notification for patient in real-time
       if (request?.patient_id) {
-        await supabase.from('notifications').insert({
-          user_id: request.patient_id,
+        sendAppNotification({
+          userId: request.patient_id,
           type: 'bill_generated',
-          title: 'Bill ready for review',
+          title: 'Bill Ready for Review',
           body: `Your pharmacy has sent bill ${billNumber} of ${formatCurrency(grandTotal)}. Please review and approve.`,
-          reference_id: id!,
+          referenceId: id!,
         })
       }
     },
@@ -165,6 +184,32 @@ export function PharmacyRequestDetailPage() {
   const updateDeliveryMutation = useMutation({
     mutationFn: async (status: 'processing' | 'dispatched' | 'delivered') => {
       await supabase.from('orders').update({ status }).eq('id', id!)
+      if (request?.patient_id) {
+        const statusMap: Record<string, { title: string; body: string }> = {
+          processing: {
+            title: 'Order Being Packed',
+            body: 'The pharmacy is packaging your medicines for delivery.',
+          },
+          dispatched: {
+            title: 'Order Dispatched for Delivery!',
+            body: 'Your medicines have been dispatched and are on the way to your address.',
+          },
+          delivered: {
+            title: 'Order Delivered Successfully',
+            body: 'Your medicines have been delivered. Thank you for using MediConnect!',
+          },
+        }
+        const notif = statusMap[status]
+        if (notif) {
+          sendAppNotification({
+            userId: request.patient_id,
+            type: 'order_update',
+            title: notif.title,
+            body: notif.body,
+            referenceId: id!,
+          })
+        }
+      }
     },
     onSuccess: (_, status) => {
       queryClient.invalidateQueries({ queryKey: ['pharmacy-request', id] })

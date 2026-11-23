@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
 import { Button } from '@/components/ui/Button'
 import { formatDate } from '@/lib/utils'
+import { sendAppNotification } from '@/lib/notifications'
 import toast from 'react-hot-toast'
 import type { Pharmacy } from '@/types/database'
 
@@ -77,11 +78,13 @@ export function AdminPharmaciesPage() {
       action,
       pharmacyEmail,
       pharmacyName,
+      ownerId,
     }: {
       id: string
       action: 'verified' | 'suspended'
       pharmacyEmail?: string
       pharmacyName?: string
+      ownerId?: string
     }) => {
       const { error } = await supabase
         .from('pharmacies')
@@ -92,6 +95,19 @@ export function AdminPharmaciesPage() {
         })
         .eq('id', id)
       if (error) throw error
+
+      // Notify the pharmacy store owner in-app in real-time
+      if (ownerId) {
+        sendAppNotification({
+          userId: ownerId,
+          type: 'pharmacy_verified',
+          title: action === 'verified' ? 'Pharmacy Approved & Verified!' : 'Pharmacy Account Suspended',
+          body: action === 'verified'
+            ? `Congratulations! ${pharmacyName || 'Your pharmacy'} has been verified by the administrator. You can now accept and fulfill patient orders.`
+            : `Your pharmacy store status was updated to suspended. Please contact platform support.`,
+          referenceId: id,
+        })
+      }
 
       // If approved and pharmacy has an email, dispatch approval notification
       if (action === 'verified' && pharmacyEmail) {
@@ -260,6 +276,7 @@ export function AdminPharmaciesPage() {
                               action: 'verified',
                               pharmacyEmail: pharmacy.email || undefined,
                               pharmacyName: pharmacy.name,
+                              ownerId: pharmacy.owner_id,
                             })
                           }
                           isLoading={verifyMutation.isPending}
@@ -277,6 +294,7 @@ export function AdminPharmaciesPage() {
                               id: pharmacy.id,
                               action: 'suspended',
                               pharmacyName: pharmacy.name,
+                              ownerId: pharmacy.owner_id,
                             })
                           }
                           isLoading={verifyMutation.isPending}

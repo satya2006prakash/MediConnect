@@ -11,7 +11,7 @@ import { PageLoader } from '@/components/ui/LoadingSpinner'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/FormField'
-
+import { sendAppNotification } from '@/lib/notifications'
 import toast from 'react-hot-toast'
 import type { Pharmacy, Medicine } from '@/types/database'
 
@@ -97,6 +97,17 @@ export function PharmaciesPage() {
 
       const { error: itemsError } = await supabase.from('order_items').insert(items)
       if (itemsError) throw itemsError
+
+      // Notify the dispensing pharmacy store owner in real-time
+      if (selectedPharmacy.owner_id) {
+        sendAppNotification({
+          userId: selectedPharmacy.owner_id,
+          type: 'new_request',
+          title: 'New Medicine Order Request',
+          body: `Patient ${profile?.full_name || 'A patient'} requested ${items.length} medicine(s). Please review and generate a bill.`,
+          referenceId: order.id,
+        })
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] })

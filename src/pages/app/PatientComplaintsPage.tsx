@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input, Textarea, Select } from '@/components/ui/FormField'
 import { formatDate } from '@/lib/utils'
+import { sendAppNotification } from '@/lib/notifications'
 import toast from 'react-hot-toast'
 import type { Complaint, Order, Pharmacy } from '@/types/database'
 
@@ -120,6 +121,23 @@ export function PatientComplaintsPage() {
         .single()
 
       if (error) throw error
+
+      // Notify platform administrator of new complaint ticket
+      try {
+        const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin')
+        if (admins && admins.length > 0) {
+          sendAppNotification({
+            userId: admins.map((a) => a.id),
+            type: 'complaint_update',
+            title: 'New Complaint Ticket Filed',
+            body: `Patient ${profile?.full_name || 'A user'} filed: "${fullSubject}".`,
+            referenceId: data.id,
+          })
+        }
+      } catch (notifErr) {
+        console.warn('Could not dispatch complaint alert to admin:', notifErr)
+      }
+
       return data
     },
     onSuccess: () => {

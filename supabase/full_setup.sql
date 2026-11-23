@@ -452,8 +452,19 @@ CREATE POLICY "Pharmacy manages bill items" ON public.bill_items
 
 -- notifications
 DROP POLICY IF EXISTS "Users see own notifications" ON public.notifications;
-CREATE POLICY "Users see own notifications" ON public.notifications
-  FOR ALL USING (auth.uid() = user_id OR public.is_admin());
+DROP POLICY IF EXISTS "Notifications select" ON public.notifications;
+DROP POLICY IF EXISTS "Notifications insert" ON public.notifications;
+DROP POLICY IF EXISTS "Notifications update" ON public.notifications;
+DROP POLICY IF EXISTS "Notifications delete" ON public.notifications;
+
+CREATE POLICY "Notifications select" ON public.notifications
+  FOR SELECT USING (auth.uid() = user_id OR public.is_admin());
+CREATE POLICY "Notifications update" ON public.notifications
+  FOR UPDATE USING (auth.uid() = user_id OR public.is_admin());
+CREATE POLICY "Notifications delete" ON public.notifications
+  FOR DELETE USING (auth.uid() = user_id OR public.is_admin());
+CREATE POLICY "Notifications insert" ON public.notifications
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL OR public.is_admin());
 
 -- complaints
 DROP POLICY IF EXISTS "Complaints view" ON public.complaints;
