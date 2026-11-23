@@ -13,7 +13,6 @@ import {
   Search,
   ArrowRight,
   Clock,
-  Send,
   ShieldAlert,
   Inbox,
 } from 'lucide-react'
@@ -258,36 +257,32 @@ export function AdminNotificationsPage() {
         title="Notifications & System Alerts"
         description="Real-time alerts, broadcast dispatches, complaint reports, and pharmacy approvals."
         actions={
-          <div className="flex items-center gap-2">
-            <Link to="/admin/broadcast">
-              <Button variant="outline" size="sm">
-                <Send className="w-3.5 h-3.5 mr-1 text-primary-600 dark:text-primary-400" />
-                Push & Broadcast
-              </Button>
-            </Link>
-            {unreadCount > 0 && (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => markAllReadMutation.mutate()}
-                isLoading={markAllReadMutation.isPending}
-              >
-                <CheckCheck className="w-3.5 h-3.5 mr-1" />
-                Mark all read
-              </Button>
-            )}
-            {readCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsDeletingAllRead(true)}
-                className="text-slate-500 hover:text-red-600 dark:hover:text-red-400"
-              >
-                <Trash2 className="w-3.5 h-3.5 mr-1" />
-                Clear read
-              </Button>
-            )}
-          </div>
+          unreadCount > 0 || readCount > 0 ? (
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => markAllReadMutation.mutate()}
+                  isLoading={markAllReadMutation.isPending}
+                >
+                  <CheckCheck className="w-3.5 h-3.5 mr-1" />
+                  Mark all read
+                </Button>
+              )}
+              {readCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsDeletingAllRead(true)}
+                  className="text-slate-500 hover:text-red-600 dark:hover:text-red-400"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1" />
+                  Clear read
+                </Button>
+              )}
+            </div>
+          ) : undefined
         }
       />
 
