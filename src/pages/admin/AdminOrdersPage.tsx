@@ -30,7 +30,7 @@ import toast from 'react-hot-toast'
 import type { Order, Profile, Pharmacy, OrderItem, Bill, BillItem } from '@/types/database'
 
 type FullAdminOrder = Order & {
-  patient: (Profile & { email?: string | null }) | null
+  patient: Profile | null
   pharmacy: Pharmacy | null
   items: OrderItem[]
   bill: (Bill & { items?: BillItem[] }) | null
@@ -52,7 +52,7 @@ export function AdminOrdersPage() {
           .from('orders')
           .select(`
             *,
-            patient:profiles(id, full_name, phone, address, city, pincode, email),
+            patient:profiles(id, full_name, phone, address, city, pincode),
             pharmacy:pharmacies(id, name, city, address, phone, email, license_number),
             items:order_items(*),
             bill:bills(*, items:bill_items(*))
@@ -60,7 +60,24 @@ export function AdminOrdersPage() {
           .order('created_at', { ascending: false })
 
         if (error) {
-          console.error('Error fetching admin orders:', error)
+          console.error('Error fetching admin orders, trying resilient fallback:', error)
+          const fallback = await supabase
+            .from('orders')
+            .select(`
+              *,
+              patient:profiles(id, full_name, phone, address, city, pincode),
+              pharmacy:pharmacies(id, name, city, phone),
+              items:order_items(*),
+              bill:bills(*)
+            `)
+            .order('created_at', { ascending: false })
+
+          if (fallback.data) {
+            return (fallback.data || []).map((order: any) => ({
+              ...order,
+              bill: Array.isArray(order.bill) ? order.bill[0] : order.bill,
+            })) as FullAdminOrder[]
+          }
           return []
         }
 
@@ -71,7 +88,8 @@ export function AdminOrdersPage() {
         }))
 
         return normalized as FullAdminOrder[]
-      } catch {
+      } catch (err) {
+        console.error('Orders query exception:', err)
         return []
       }
     },
@@ -477,8 +495,8 @@ export function AdminOrdersPage() {
                       {selectedOrder.patient.phone}
                     </p>
                   )}
-                  {selectedOrder.patient?.email && (
-                    <p className="text-slate-500 dark:text-[#8B949E]">{selectedOrder.patient.email}</p>
+                  {(selectedOrder.patient as any)?.email && (
+                    <p className="text-slate-500 dark:text-[#8B949E]">{(selectedOrder.patient as any).email}</p>
                   )}
                   {(selectedOrder.patient?.address || selectedOrder.patient?.city) && (
                     <p className="text-slate-500 dark:text-[#8B949E] flex items-start gap-1 pt-0.5">
