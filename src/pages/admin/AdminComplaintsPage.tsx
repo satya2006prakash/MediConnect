@@ -9,6 +9,7 @@ import {
   Send,
   Eye,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react'
 
 import { supabase } from '@/lib/supabase'
@@ -17,7 +18,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
 import { Button } from '@/components/ui/Button'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ConfirmDialog } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/FormField'
 import { formatDate } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -44,6 +45,7 @@ export function AdminComplaintsPage() {
 
   // Selected complaint for full Resolution Modal
   const [activeComplaint, setActiveComplaint] = useState<EnrichedComplaint | null>(null)
+  const [complaintToDelete, setComplaintToDelete] = useState<EnrichedComplaint | null>(null)
   const [modalStatus, setModalStatus] = useState<ComplaintStatus>('under_review')
   const [modalAdminNote, setModalAdminNote] = useState('')
   const [notifyUser, setNotifyUser] = useState(true)
@@ -186,6 +188,22 @@ export function AdminComplaintsPage() {
       subject: item.subject,
     })
   }
+
+  // Permanent Delete Complaint Mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('complaints').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-complaints'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-header-alerts'] })
+      toast.success('Complaint permanently deleted')
+      setComplaintToDelete(null)
+      setActiveComplaint(null)
+    },
+    onError: (err: Error) => toast.error(err.message || 'Failed to delete complaint'),
+  })
 
   // Filter complaints
   const filtered = complaints.filter((c) => {
@@ -440,6 +458,16 @@ export function AdminComplaintsPage() {
                             <CheckCircle className="w-3.5 h-3.5" />
                           </Button>
                         )}
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setComplaintToDelete(item)}
+                          className="text-xs text-[#D64545] hover:text-[#B42318] hover:bg-red-50 dark:hover:bg-red-950/30 h-8 px-2"
+                          title="Permanently delete complaint"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -459,26 +487,38 @@ export function AdminComplaintsPage() {
           size="lg"
           footer={
             <div className="flex items-center justify-between w-full">
-              <Button variant="outline" onClick={() => setActiveComplaint(null)}>
-                Cancel
-              </Button>
               <Button
-                onClick={() =>
-                  resolveMutation.mutate({
-                    id: activeComplaint.id,
-                    status: modalStatus,
-                    adminNote: modalAdminNote,
-                    shouldNotify: notifyUser,
-                    filedBy: activeComplaint.filed_by,
-                    subject: activeComplaint.subject,
-                  })
-                }
-                isLoading={resolveMutation.isPending}
-                className="gap-2"
+                variant="outline"
+                size="sm"
+                onClick={() => setComplaintToDelete(activeComplaint)}
+                className="text-xs text-[#D64545] hover:text-[#B42318] hover:bg-red-50 dark:hover:bg-red-950/30 border-[#FDA29B] dark:border-[#912018] gap-1.5"
               >
-                <Send className="w-3.5 h-3.5" />
-                Save &amp; Update Status
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete Permanently
               </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setActiveComplaint(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    resolveMutation.mutate({
+                      id: activeComplaint.id,
+                      status: modalStatus,
+                      adminNote: modalAdminNote,
+                      shouldNotify: notifyUser,
+                      filedBy: activeComplaint.filed_by,
+                      subject: activeComplaint.subject,
+                    })
+                  }
+                  isLoading={resolveMutation.isPending}
+                  className="gap-2 text-xs"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  Save &amp; Update Status
+                </Button>
+              </div>
             </div>
           }
         >
@@ -586,6 +626,22 @@ export function AdminComplaintsPage() {
           </div>
         </Modal>
       )}
+
+      {/* Permanent Deletion Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!complaintToDelete}
+        onClose={() => setComplaintToDelete(null)}
+        onConfirm={() => {
+          if (complaintToDelete) {
+            deleteMutation.mutate(complaintToDelete.id)
+          }
+        }}
+        title="Permanently Delete Complaint"
+        description={`Are you sure you want to permanently delete complaint ticket "${complaintToDelete?.subject}"? This complaint record will be erased completely and this action cannot be undone.`}
+        confirmLabel="Delete Permanently"
+        variant="danger"
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   )
 }
