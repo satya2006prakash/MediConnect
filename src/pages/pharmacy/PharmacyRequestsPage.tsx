@@ -37,7 +37,7 @@ export function PharmacyRequestsPage() {
           .from('orders')
           .select('*, patient:profiles(full_name, phone)')
           .eq('pharmacy_id', pharmacy!.id)
-          .in('status', ['pending', 'accepted', 'bill_generated', 'bill_approved'])
+          .in('status', ['pending', 'accepted', 'bill_generated', 'bill_approved', 'processing', 'dispatched'])
           .order('created_at', { ascending: false })
         if (error) {
           console.error('Error fetching pharmacy requests:', error)
@@ -59,6 +59,15 @@ export function PharmacyRequestsPage() {
       <PageHeader
         title="Refill Requests"
         description={`${requests.filter((r) => r.status === 'pending').length} pending action${requests.filter((r) => r.status === 'pending').length !== 1 ? 's' : ''}`}
+        actions={
+          <Link
+            to="/pharmacy/orders"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border dark:border-[#30363D] hover:bg-slate-50 dark:hover:bg-[#21262D] text-slate-700 dark:text-slate-200 transition-colors"
+          >
+            View Order History
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        }
       />
 
       {requests.length === 0 ? (

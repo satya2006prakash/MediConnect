@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MapPin, Phone } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Copy } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -128,7 +128,8 @@ export function OrderDetailPage() {
             order.bill.subtotal,
             order.bill.tax,
             order.bill.delivery_fee,
-            order.bill.total
+            order.bill.total,
+            order.bill.id
           )
 
           return (
@@ -137,6 +138,29 @@ export function OrderDetailPage() {
                 title="Bill from pharmacy"
                 actions={<StatusBadge status={order.bill.status} />}
               />
+
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 mb-4 rounded-lg bg-slate-50 dark:bg-[#21262D] border border-border dark:border-[#30363D] text-xs">
+                <div className="flex items-center gap-1.5 font-mono">
+                  <span className="text-slate-500 dark:text-[#8B949E]">Bill No:</span>
+                  <strong className="font-semibold text-slate-900 dark:text-[#F0F6FC] bg-white dark:bg-[#161B22] px-2 py-0.5 rounded border border-border dark:border-[#30363D]">
+                    {billMeta.billNumber}
+                  </strong>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(billMeta.billNumber)
+                      toast.success('Bill number copied!')
+                    }}
+                    className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    title="Copy Bill Number"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <span className="text-slate-400 dark:text-[#8B949E]">
+                  Issued: {formatDate(order.bill.generated_at)}
+                </span>
+              </div>
 
               <div className="space-y-2 mb-4">
                 {order.bill.items?.map((item) => (

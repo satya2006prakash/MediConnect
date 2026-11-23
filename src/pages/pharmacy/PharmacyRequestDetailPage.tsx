@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Percent, Receipt, Truck } from 'lucide-react'
+import { ArrowLeft, Percent, Receipt, Truck, Copy } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/FormField'
-import { formatDate, formatCurrency, parseBillMetadata, cn } from '@/lib/utils'
+import { formatDate, formatCurrency, parseBillMetadata, generateUniqueBillNumber, cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import type { Order, OrderItem, Bill, BillItem } from '@/types/database'
 
@@ -104,7 +104,10 @@ export function PharmacyRequestDetailPage() {
         throw new Error('Please enter unit prices greater than ₹0 for all items.')
       }
 
+      const billNumber = generateUniqueBillNumber()
+
       const payloadMetadata = JSON.stringify({
+        bill_number: billNumber,
         discount_percent: discountPercent,
         discount_amount: discountAmount,
         tax_percent: taxPercent,
@@ -146,7 +149,7 @@ export function PharmacyRequestDetailPage() {
           user_id: request.patient_id,
           type: 'bill_generated',
           title: 'Bill ready for review',
-          body: `Your pharmacy has sent a bill of ${formatCurrency(grandTotal)}. Please review and approve.`,
+          body: `Your pharmacy has sent bill ${billNumber} of ${formatCurrency(grandTotal)}. Please review and approve.`,
           reference_id: id!,
         })
       }
@@ -489,29 +492,54 @@ export function PharmacyRequestDetailPage() {
               title="Generated Bill"
               actions={<StatusBadge status={request.bill.status} />}
             />
-            <div className="space-y-2 mb-4">
-              {request.bill.items?.map((item) => (
-                <div key={item.id} className="flex items-center justify-between text-sm py-1 border-b border-border last:border-0">
-                  <span className="text-slate-700">{item.medicine_name} × {item.quantity}</span>
-                  <span className="text-slate-900 font-medium">{formatCurrency(item.total_price)}</span>
-                </div>
-              ))}
-            </div>
-
             {(() => {
               const billMeta = parseBillMetadata(
                 request.bill.patient_note,
                 request.bill.subtotal,
                 request.bill.tax,
                 request.bill.delivery_fee,
-                request.bill.total
+                request.bill.total,
+                request.bill.id
               )
               return (
-                <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-1.5 text-sm">
-                  <div className="flex justify-between text-slate-500">
-                    <span>Subtotal</span>
-                    <span className="text-slate-900 font-medium">{formatCurrency(request.bill.subtotal)}</span>
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 mb-4 rounded-lg bg-slate-50 dark:bg-[#21262D] border border-border dark:border-[#30363D] text-xs">
+                    <div className="flex items-center gap-1.5 font-mono">
+                      <span className="text-slate-500 dark:text-[#8B949E]">Bill No:</span>
+                      <strong className="font-semibold text-slate-900 dark:text-[#F0F6FC] bg-white dark:bg-[#161B22] px-2 py-0.5 rounded border border-border dark:border-[#30363D]">
+                        {billMeta.billNumber}
+                      </strong>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(billMeta.billNumber)
+                          toast.success('Bill number copied!')
+                        }}
+                        className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                        title="Copy Bill Number"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <span className="text-slate-400 dark:text-[#8B949E]">
+                      Issued: {formatDate(request.bill.generated_at)}
+                    </span>
                   </div>
+
+                  <div className="space-y-2 mb-4">
+                    {request.bill.items?.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between text-sm py-1 border-b border-border dark:border-[#30363D] last:border-0">
+                        <span className="text-slate-700 dark:text-slate-200">{item.medicine_name} × {item.quantity}</span>
+                        <span className="text-slate-900 dark:text-[#F0F6FC] font-medium">{formatCurrency(item.total_price)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-[#21262D] rounded-xl p-3.5 border border-slate-200 dark:border-[#30363D] space-y-1.5 text-sm">
+                    <div className="flex justify-between text-slate-500 dark:text-[#8B949E]">
+                      <span>Subtotal</span>
+                      <span className="text-slate-900 dark:text-[#F0F6FC] font-medium">{formatCurrency(request.bill.subtotal)}</span>
+                    </div>
                   {billMeta.discountAmount > 0 && (
                     <div className="flex justify-between text-emerald-600 font-medium">
                       <span>Discount ({billMeta.discountPercent}%)</span>
@@ -546,10 +574,11 @@ export function PharmacyRequestDetailPage() {
                     </p>
                   )}
                 </div>
-              )
-            })()}
-          </Card>
-        )}
+              </div>
+            )
+          })()}
+        </Card>
+      )}
 
         {/* Update delivery status actions */}
         {request.status === 'bill_approved' && (

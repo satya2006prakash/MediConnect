@@ -56,7 +56,17 @@ export function truncate(str: string, length: number): string {
   return str.slice(0, length) + '...'
 }
 
+export function generateUniqueBillNumber(): string {
+  const now = new Date()
+  const year = now.getFullYear().toString().slice(-2)
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase()
+  return `MC-${year}${month}${day}-${randomSuffix}`
+}
+
 export interface BillMetadata {
+  bill_number?: string
   discount_percent: number
   discount_amount: number
   tax_percent: number
@@ -66,6 +76,7 @@ export interface BillMetadata {
 }
 
 export interface ParsedBillDetails {
+  billNumber: string
   discountPercent: number
   discountAmount: number
   taxPercent: number
@@ -79,12 +90,18 @@ export function parseBillMetadata(
   subtotal: number = 0,
   tax: number = 0,
   deliveryFee: number = 0,
-  total: number = 0
+  total: number = 0,
+  fallbackId?: string
 ): ParsedBillDetails {
+  const defaultFallbackBillNumber = fallbackId
+    ? `MC-BILL-${fallbackId.replace(/-/g, '').slice(0, 6).toUpperCase()}`
+    : 'MC-BILL-RECORD'
+
   if (patientNote) {
     try {
       const parsed = JSON.parse(patientNote)
       if (parsed && typeof parsed === 'object') {
+        const billNumber = parsed.bill_number || defaultFallbackBillNumber
         const discountPercent = Number(parsed.discount_percent) || 0
         const discountAmount =
           typeof parsed.discount_amount === 'number'
@@ -94,6 +111,7 @@ export function parseBillMetadata(
         const taxAmount = typeof parsed.tax_amount === 'number' ? parsed.tax_amount : tax
         const taxableSubtotal = Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100)
         return {
+          billNumber,
           discountPercent,
           discountAmount,
           taxPercent,
@@ -114,6 +132,7 @@ export function parseBillMetadata(
   const taxPercent = taxableSubtotal > 0 && tax > 0 ? (tax / taxableSubtotal) * 100 : 0
 
   return {
+    billNumber: defaultFallbackBillNumber,
     discountPercent: Number(discountPercent.toFixed(1)),
     discountAmount: calculatedDiscount,
     taxPercent: Number(taxPercent.toFixed(1)),

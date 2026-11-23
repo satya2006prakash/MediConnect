@@ -1,15 +1,15 @@
 import { Link } from 'react-router-dom'
-import { Bell, Menu, User, Shield, Store, Pill } from 'lucide-react'
+import { Menu, User, Shield, Store, Pill } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { Badge } from '@/components/ui/StatusBadge'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { NotificationDropdown } from '@/components/layout/NotificationDropdown'
 import { cn } from '@/lib/utils'
 
 export interface AppHeaderProps {
   title?: string
   subtitle?: string
   onMobileMenuToggle?: () => void
-  unreadNotificationsCount?: number
   className?: string
 }
 
@@ -17,7 +17,6 @@ export function AppHeader({
   title,
   subtitle,
   onMobileMenuToggle,
-  unreadNotificationsCount = 2,
   className,
 }: AppHeaderProps) {
   const { profile } = useAuthStore()
@@ -102,17 +101,8 @@ export function AppHeader({
         {/* Dark Mode Toggle */}
         <ThemeToggle size="sm" />
 
-        {/* Notifications Icon with Badge */}
-        <Link
-          to={roleConfig.notificationsPath}
-          className="relative p-2 rounded-md text-[#667085] dark:text-[#8B949E] hover:text-[#182230] dark:hover:text-[#F0F6FC] hover:bg-[#F0F3F7] dark:hover:bg-[#21262D] transition-colors"
-          title="Notifications"
-        >
-          <Bell className="w-4 h-4" />
-          {unreadNotificationsCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#D64545] ring-2 ring-white dark:ring-[#161B22]" />
-          )}
-        </Link>
+        {/* Interactive Notifications Popover */}
+        <NotificationDropdown role={role} />
 
         <div className="h-4 w-px bg-[#E5EAF0] dark:bg-[#30363D]" />
 

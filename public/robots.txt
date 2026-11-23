@@ -1,0 +1,19 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /register/patient
+Allow: /register/pharmacy
+Allow: /terms
+Allow: /privacy
+
+# Disallow private dashboards and sensitive routes from search indexing
+Disallow: /app/
+Disallow: /pharmacy/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /forgot-password
+Disallow: /reset-password
+
+# Sitemap location
+Sitemap: https://mediconnect-sp.vercel.app/sitemap.xml

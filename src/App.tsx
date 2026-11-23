@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast'
 
 // Auth bootstrap
 import { useAuthBootstrap } from '@/hooks/useAuthBootstrap'
+import { useDocumentSEO } from '@/hooks/useDocumentSEO'
 
 // Layouts
 import { PublicLayout } from '@/layouts/PublicLayout'
@@ -41,6 +42,7 @@ import { PatientComplaintsPage } from '@/pages/app/PatientComplaintsPage'
 import { PharmacyDashboard } from '@/pages/pharmacy/PharmacyDashboard'
 import { PharmacyInventoryPage } from '@/pages/pharmacy/PharmacyInventoryPage'
 import { PharmacyRequestsPage } from '@/pages/pharmacy/PharmacyRequestsPage'
+import { PharmacyOrdersPage } from '@/pages/pharmacy/PharmacyOrdersPage'
 import { PharmacyRequestDetailPage } from '@/pages/pharmacy/PharmacyRequestDetailPage'
 import { PharmacyPendingApprovalPage } from '@/pages/pharmacy/PharmacyPendingApprovalPage'
 import { PharmacyComplaintsPage } from '@/pages/pharmacy/PharmacyComplaintsPage'
@@ -65,6 +67,7 @@ const queryClient = new QueryClient({
 
 function AppRoutes() {
   useAuthBootstrap()
+  useDocumentSEO()
 
   return (
     <Routes>
@@ -119,7 +122,7 @@ function AppRoutes() {
         <Route path="inventory" element={<PharmacyInventoryPage />} />
         <Route path="requests" element={<PharmacyRequestsPage />} />
         <Route path="requests/:id" element={<PharmacyRequestDetailPage />} />
-        <Route path="orders" element={<PharmacyRequestsPage />} />
+        <Route path="orders" element={<PharmacyOrdersPage />} />
         <Route path="complaints" element={<PharmacyComplaintsPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<ProfilePage />} />
