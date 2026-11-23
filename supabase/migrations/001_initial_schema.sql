@@ -381,7 +381,7 @@ CREATE POLICY "Users file complaints" ON public.complaints
 
 DROP POLICY IF EXISTS "Admin manages complaints" ON public.complaints;
 CREATE POLICY "Admin manages complaints" ON public.complaints
-  FOR UPDATE USING (public.is_admin());
+  FOR ALL USING (public.is_admin());
 
 
 -- ─────────────────────────────────────────────────────────────────────────────

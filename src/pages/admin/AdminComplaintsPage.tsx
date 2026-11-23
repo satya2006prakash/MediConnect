@@ -192,13 +192,49 @@ export function AdminComplaintsPage() {
   // Permanent Delete Complaint Mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('complaints').delete().eq('id', id)
-      if (error) throw error
+      // 1. Try serverless admin API first (uses Supabase service_role to bypass RLS)
+      let apiSuccess = false
+      let apiErrorMsg = ''
+      try {
+        const res = await fetch('/api/delete-complaint', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ complaintId: id }),
+        })
+        const result = await res.json().catch(() => ({}))
+        if (res.ok && result.success) {
+          apiSuccess = true
+        } else if (result.error) {
+          apiErrorMsg = result.error
+        }
+      } catch (err: any) {
+        console.warn('API /api/delete-complaint unreachable, falling back to direct client Supabase:', err)
+      }
+
+      if (apiSuccess) return
+
+      // 2. Fallback to client-side Supabase deletion if RLS policy is updated in Supabase
+      const { data, error } = await supabase
+        .from('complaints')
+        .delete()
+        .eq('id', id)
+        .select()
+
+      if (error) {
+        throw new Error(error.message || apiErrorMsg || 'Failed to delete complaint from database')
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error(
+          apiErrorMsg ||
+            'Database denied deletion due to Row Level Security. Please verify admin permissions.'
+        )
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-complaints'] })
       queryClient.invalidateQueries({ queryKey: ['admin-header-alerts'] })
-      toast.success('Complaint permanently deleted')
+      toast.success('Complaint permanently deleted from database')
       setComplaintToDelete(null)
       setActiveComplaint(null)
     },

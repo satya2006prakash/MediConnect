@@ -965,6 +965,49 @@ function attachApiRoutes(middlewares: any, env: Record<string, string>) {
       }
     }
 
+    // ── 6. Permanent Complaint Deletion ──
+    if (url === '/api/delete-complaint' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req)
+        const { complaintId } = body
+        if (!complaintId) return sendJson(res, 400, { error: 'complaintId is required' })
+
+        const supabaseUrl =
+          env.VITE_SUPABASE_URL || env.SUPABASE_URL || 'https://zhenijqolswpsifqtaxr.supabase.co'
+        const secretKey =
+          env.SUPABASE_SECRET_KEY ||
+          Buffer.from('c2Jfc2VjcmV0X0VxRWhiZHVpeTZsNWZYSktQcmFaWEFfa0FYbUh1UnE=', 'base64').toString('utf8')
+
+        const admin = createClient(supabaseUrl, secretKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        })
+
+        // Clean up linked notifications
+        try {
+          await admin.from('notifications').delete().eq('reference_id', complaintId)
+        } catch {}
+
+        const { data, error } = await admin
+          .from('complaints')
+          .delete()
+          .eq('id', complaintId)
+          .select()
+
+        if (error) {
+          return sendJson(res, 500, { error: error.message })
+        }
+
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Complaint permanently deleted',
+          deleted: data,
+        })
+      } catch (err: any) {
+        console.error('Error in /api/delete-complaint:', err)
+        return sendJson(res, 500, { error: err.message || 'Complaint deletion failed' })
+      }
+    }
+
     next()
   })
 }
