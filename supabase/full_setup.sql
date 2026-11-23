@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS public.medicines (
   daily_dose          numeric NOT NULL DEFAULT 1,
   reminder_threshold  integer NOT NULL DEFAULT 7,
   is_prescription     boolean NOT NULL DEFAULT false,
+  last_consumed_date  date DEFAULT CURRENT_DATE,
   notes               text,
   created_at          timestamptz NOT NULL DEFAULT now(),
   updated_at          timestamptz NOT NULL DEFAULT now()

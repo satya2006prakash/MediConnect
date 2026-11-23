@@ -61,6 +61,7 @@ export interface Medicine {
   daily_dose: number
   reminder_threshold: number
   is_prescription: boolean
+  last_consumed_date?: string | null
   notes: string | null
   created_at: string
   updated_at: string

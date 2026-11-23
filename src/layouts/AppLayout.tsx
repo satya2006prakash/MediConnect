@@ -2,9 +2,13 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { AppHeader } from '@/components/layout/AppHeader'
+import { useMedicineConsumption } from '@/hooks/useMedicineConsumption'
 
 export function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // Activates auto date-based stock catch-up and reconciles missed medicine doses
+  useMedicineConsumption()
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -18,4 +22,3 @@ export function AppLayout() {
     </div>
   )
 }
-

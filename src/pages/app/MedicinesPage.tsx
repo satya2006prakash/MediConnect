@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import { useMedicineConsumption } from '@/hooks/useMedicineConsumption'
 import type { Medicine } from '@/types/database'
 
 
@@ -79,6 +80,7 @@ const unitOptions = [
 export function MedicinesPage() {
   const { profile } = useAuthStore()
   const queryClient = useQueryClient()
+  const { takeDose, undoDose } = useMedicineConsumption()
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null)
@@ -238,6 +240,8 @@ export function MedicinesPage() {
               medicine={med}
               onEdit={openEdit}
               onDelete={setDeletingMedicine}
+              onTakeDose={takeDose}
+              onUndoDose={undoDose}
             />
           ))}
         </div>
