@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/FormField'
 import toast from 'react-hot-toast'
 
+import { useAuthStore } from '@/stores/authStore'
+
 const schema = z
   .object({
     password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -28,6 +30,7 @@ export function ResetPasswordPage() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [sessionChecked, setSessionChecked] = useState(false)
   const [hasValidSession, setHasValidSession] = useState(false)
+  const { setPasswordRecovery, reset } = useAuthStore()
 
   const {
     register,
@@ -36,6 +39,9 @@ export function ResetPasswordPage() {
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   useEffect(() => {
+    // Explicitly enforce password recovery mode while on this page
+    setPasswordRecovery(true)
+
     // We MUST wait for onAuthStateChange — Supabase parses the #access_token hash
     // asynchronously, so getSession() called immediately often returns null even
     // when the link is valid. Subscribe first, then also check existing session.
@@ -46,6 +52,7 @@ export function ResetPasswordPage() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
         clearTimeout(timer)
+        setPasswordRecovery(true)
         setHasValidSession(true)
         setSessionChecked(true)
       }
@@ -55,6 +62,7 @@ export function ResetPasswordPage() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         clearTimeout(timer)
+        setPasswordRecovery(true)
         setHasValidSession(true)
         setSessionChecked(true)
       }
@@ -64,7 +72,10 @@ export function ResetPasswordPage() {
     // concluding the link is invalid / expired
     timer = setTimeout(() => {
       setSessionChecked((prev) => {
-        if (!prev) return true  // show "expired" UI only if still unchecked
+        if (!prev) {
+          setPasswordRecovery(false)
+          return true // show "expired" UI only if still unchecked
+        }
         return prev
       })
     }, 3000)
@@ -73,7 +84,18 @@ export function ResetPasswordPage() {
       subscription.unsubscribe()
       clearTimeout(timer)
     }
-  }, [])
+  }, [setPasswordRecovery])
+
+  const handleReturnToSignIn = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault()
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // ignore
+    }
+    reset()
+    navigate('/login', { replace: true })
+  }
 
   const onSubmit = async (data: FormData) => {
     const { error } = await supabase.auth.updateUser({
@@ -85,11 +107,22 @@ export function ResetPasswordPage() {
       return
     }
 
+    // Security best practice: Flush the temporary recovery session so the user must
+    // sign in cleanly using their newly updated credentials.
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // ignore
+    }
+    reset()
+
     setIsSuccess(true)
-    toast.success('Password updated successfully!')
+    toast.success('Password updated successfully! Please sign in with your new password.', {
+      duration: 4000,
+    })
     setTimeout(() => {
       navigate('/login', { replace: true })
-    }, 2500)
+    }, 2000)
   }
 
   return (
@@ -111,11 +144,9 @@ export function ResetPasswordPage() {
                 Your password has been securely reset. Redirecting you to the sign-in page...
               </p>
               <div className="pt-2">
-                <Link to="/login">
-                  <Button variant="primary" size="sm" className="w-full">
-                    Go to Sign In
-                  </Button>
-                </Link>
+                <Button variant="primary" size="sm" className="w-full" onClick={handleReturnToSignIn}>
+                  Go to Sign In
+                </Button>
               </div>
             </div>
           ) : !sessionChecked ? (
@@ -187,9 +218,13 @@ export function ResetPasswordPage() {
               </form>
 
               <div className="mt-4 pt-3 border-t border-[#E5EAF0] dark:border-[#30363D] text-center">
-                <Link to="/login" className="text-xs text-[#667085] dark:text-[#8B949E] hover:text-[#182230] dark:hover:text-[#F0F6FC]">
+                <button
+                  type="button"
+                  onClick={handleReturnToSignIn}
+                  className="text-xs text-[#667085] dark:text-[#8B949E] hover:text-[#182230] dark:hover:text-[#F0F6FC] transition-colors"
+                >
                   Return to sign in
-                </Link>
+                </button>
               </div>
             </>
           )}

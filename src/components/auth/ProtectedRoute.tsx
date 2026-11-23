@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, profile, isInitialised, isLoading } = useAuthStore()
+  const { user, profile, isInitialised, isLoading, isPasswordRecovery } = useAuthStore()
   const location = useLocation()
 
   if (!isInitialised || isLoading) {
@@ -20,6 +20,11 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
         </div>
       </div>
     )
+  }
+
+  // If session is currently in password recovery mode, force completion of reset-password
+  if (isPasswordRecovery) {
+    return <Navigate to="/reset-password" replace />
   }
 
   if (!user) {

@@ -11,6 +11,17 @@ export function useAuthBootstrap() {
     useAuthStore()
 
   useEffect(() => {
+    // Detect password recovery mode from URL hash or pathname
+    if (typeof window !== 'undefined') {
+      const isRecoveryHash =
+        window.location.hash.includes('type=recovery') ||
+        window.location.hash.includes('type=invite')
+      const isResetPath = window.location.pathname === '/reset-password'
+      if (isRecoveryHash || isResetPath) {
+        useAuthStore.getState().setPasswordRecovery(true)
+      }
+    }
+
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -35,6 +46,10 @@ export function useAuthBootstrap() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        useAuthStore.getState().setPasswordRecovery(true)
+      }
+
       if (event === 'SIGNED_OUT') {
         // User explicitly logged out
         reset()

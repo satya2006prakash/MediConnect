@@ -10,6 +10,7 @@ interface AuthState {
   profile: Profile | null
   isLoading: boolean
   isInitialised: boolean
+  isPasswordRecovery: boolean
 
   // actions
   setUser: (user: User | null) => void
@@ -18,6 +19,7 @@ interface AuthState {
   updateProfileAvatar: (avatarUrl: string | null) => void
   setLoading: (loading: boolean) => void
   setInitialised: (initialised: boolean) => void
+  setPasswordRecovery: (isRecovery: boolean) => void
   fetchProfile: (userId: string) => Promise<void>
   loginAsDemo: (role: UserRole) => void
   signOut: () => Promise<void>
@@ -32,6 +34,7 @@ export const useAuthStore = create<AuthState>()(
       profile: null,
       isLoading: true,
       isInitialised: false,
+      isPasswordRecovery: false,
 
       setUser: (user) => set({ user }),
       setSession: (session) => set({ session }),
@@ -42,6 +45,7 @@ export const useAuthStore = create<AuthState>()(
         })),
       setLoading: (isLoading) => set({ isLoading }),
       setInitialised: (isInitialised) => set({ isInitialised }),
+      setPasswordRecovery: (isPasswordRecovery) => set({ isPasswordRecovery }),
 
       fetchProfile: async (userId: string) => {
         try {
@@ -164,7 +168,7 @@ export const useAuthStore = create<AuthState>()(
         } catch {
           // ignore offline/demo errors
         }
-        set({ user: null, session: null, profile: null })
+        set({ user: null, session: null, profile: null, isPasswordRecovery: false })
       },
 
 
@@ -175,6 +179,7 @@ export const useAuthStore = create<AuthState>()(
           profile: null,
           isLoading: false,
           isInitialised: true,
+          isPasswordRecovery: false,
         }),
     }),
     {

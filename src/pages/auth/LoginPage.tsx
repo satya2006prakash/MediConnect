@@ -29,18 +29,18 @@ const roleHomes: Record<UserRole, string> = {
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, profile, setUser, setSession, fetchProfile } = useAuthStore()
+  const { user, profile, isPasswordRecovery, setUser, setSession, fetchProfile } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname
 
-  // Keep logged in: If user is already authenticated, redirect them directly to their dashboard
+  // Keep logged in: If user is already authenticated (and not in recovery mode), redirect them directly to their dashboard
   useEffect(() => {
-    if (user && profile) {
+    if (user && profile && !isPasswordRecovery) {
       const destination = from || roleHomes[profile.role] || '/app/dashboard'
       navigate(destination, { replace: true })
     }
-  }, [user, profile, navigate, from])
+  }, [user, profile, isPasswordRecovery, navigate, from])
 
   const {
     register,

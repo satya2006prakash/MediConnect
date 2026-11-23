@@ -1,10 +1,14 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useAuthStore } from '@/stores/authStore'
 
 export function PublicLayout() {
-  const { user, profile } = useAuthStore()
+  const { user, profile, isPasswordRecovery, signOut } = useAuthStore()
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const isResetPasswordPage = location.pathname === '/reset-password'
 
   const dashboardPath =
     profile?.role === 'admin'
@@ -12,6 +16,17 @@ export function PublicLayout() {
       : profile?.role === 'pharmacy_admin'
         ? '/pharmacy/dashboard'
         : '/app/dashboard'
+
+  // Never allow dashboard bypass if in password recovery mode or on reset-password page
+  const canAccessDashboard = user && profile && !isPasswordRecovery && !isResetPasswordPage
+
+  const handleAbortRecovery = async (e: React.MouseEvent) => {
+    if (isPasswordRecovery || isResetPasswordPage) {
+      e.preventDefault()
+      await signOut()
+      navigate('/login', { replace: true })
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -22,13 +37,21 @@ export function PublicLayout() {
 
           <nav className="flex items-center gap-3 sm:gap-5">
             <ThemeToggle size="sm" />
-            {user && profile ? (
+            {canAccessDashboard ? (
               <Link
                 to={dashboardPath}
                 className="text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors shadow-xs inline-flex items-center gap-1.5"
               >
                 <span>Dashboard</span>
                 <span>→</span>
+              </Link>
+            ) : isResetPasswordPage ? (
+              <Link
+                to="/login"
+                onClick={handleAbortRecovery}
+                className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
+              >
+                Sign in
               </Link>
             ) : (
               <>
