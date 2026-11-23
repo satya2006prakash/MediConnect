@@ -317,6 +317,11 @@ export function NotificationDropdown({ role, className }: NotificationDropdownPr
                   } else if (role === 'pharmacy_admin') {
                     if (n.reference_id) navigate(`/pharmacy/requests/${n.reference_id}`)
                     else navigate('/pharmacy/requests')
+                  } else if (role === 'admin') {
+                    if (n.type === 'complaint_update') navigate('/admin/complaints')
+                    else if (n.type === 'pharmacy_verified') navigate('/admin/pharmacies')
+                    else if (n.type === 'broadcast' || n.type === 'system_alert') navigate('/admin/broadcast')
+                    else navigate('/admin/notifications')
                   }
                 }}
                 className={cn(
@@ -391,11 +396,11 @@ export function NotificationDropdown({ role, className }: NotificationDropdownPr
             )}
             {role === 'admin' && (
               <Link
-                to="/admin/dashboard"
+                to="/admin/notifications"
                 onClick={() => setIsOpen(false)}
                 className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline inline-flex items-center gap-1"
               >
-                Go to Platform Overview
+                View all notifications
                 <ArrowRight className="w-3 h-3" />
               </Link>
             )}

@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Menu, User, Shield, Store, Pill } from 'lucide-react'
+import { Menu, User, Shield, Store, Pill, Bell } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { Badge } from '@/components/ui/StatusBadge'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -27,6 +29,27 @@ export function AppHeader({
 
   const role = profile?.role ?? 'patient'
 
+  // Admin unread count for the bell badge
+  const { data: adminUnreadCount = 0 } = useQuery({
+    queryKey: ['header-unread-count', profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return 0
+      try {
+        const { count, error } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', profile.id)
+          .eq('is_read', false)
+        if (error) return 0
+        return count || 0
+      } catch {
+        return 0
+      }
+    },
+    enabled: role === 'admin' && !!profile?.id,
+    refetchInterval: 15000,
+  })
+
   const roleConfig = {
     patient: {
       label: 'Patient Portal',
@@ -46,7 +69,7 @@ export function AppHeader({
       label: 'Platform Admin',
       variant: 'neutral' as const,
       icon: <Shield className="w-3.5 h-3.5" />,
-      notificationsPath: '/admin/orders',
+      notificationsPath: '/admin/notifications',
       profilePath: '/admin/settings',
     },
   }[role]
@@ -105,8 +128,25 @@ export function AppHeader({
         {/* Dark Mode Toggle */}
         <ThemeToggle size="sm" />
 
-        {/* Interactive Notifications Popover */}
-        <NotificationDropdown role={role} />
+        {/* Bell Notifications */}
+        {role === 'admin' ? (
+          <Link
+            to="/admin/notifications"
+            className="relative p-2 rounded-md text-[#667085] dark:text-[#8B949E] hover:text-[#182230] dark:hover:text-[#F0F6FC] hover:bg-[#F0F3F7] dark:hover:bg-[#21262D] transition-colors"
+            title="Notifications & System Alerts"
+            aria-label="View all notifications"
+          >
+            <Bell className="w-4 h-4" />
+            {adminUnreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D64545] ring-2 ring-white dark:ring-[#161B22]" />
+              </span>
+            )}
+          </Link>
+        ) : (
+          <NotificationDropdown role={role} />
+        )}
 
         <div className="h-4 w-px bg-[#E5EAF0] dark:bg-[#30363D]" />
 
